@@ -1,0 +1,30 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache
+.coverage
+*.cover
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Frontend
+web/node_modules/
+web/dist/
+web/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
