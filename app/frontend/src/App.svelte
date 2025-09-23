@@ -1,28 +1,32 @@
 <script>
-  import Router, { link } from 'svelte-spa-router';
+  import { authToken } from "./lib/auth";
+  import { onMount } from "svelte";
 
-  import Home from './Pages/Home.svelte';
-  import Payment from './Pages/Payment.svelte';
-  import Bookstore from './Pages/Bookstore.svelte';
-  import Usersettings from './Pages/Usersettings.svelte';
-  import NotFound from './Pages/NotFound.svelte';
+  import Login from "./Routes/Login.svelte";
+  import Register from "./Routes/Register.svelte";
+  import Home from "./Routes/Home.svelte";
 
-  const routes = {
-    '/': Home,
-    '/Home': Home,
-    '/Bookstore': Bookstore,
-    '/Payment': Payment,
-    '/Settings': Usersettings,
+  let page = "login"; // ค่า default
 
-    "*": NotFound
-  }; 
+  $: token = $authToken;
+
+  onMount(() => {
+    if (token) {
+      page = "home";
+    }
+  });
+
+  function handleNavigate(target) {
+    page = target;
+  }
 </script>
 
-<nav>
-  <a href="#/Home" use:link>Home</a>
-  <a href="#/Bookstore" use:link>Bookstore</a>
-  <a href="#/Payment" use:link>Payment</a>
-  <a href="#/Settings" use:link>Settings</a>
-</nav>
-
-<Router {routes} prefix="" />
+{#if !token}
+  {#if page === "login"}
+    <Login on:navigate={e => handleNavigate(e.detail)} />
+  {:else if page === "register"}
+    <Register on:navigate={e => handleNavigate(e.detail)} />
+  {/if}
+{:else}
+  <Home />
+{/if}
