@@ -3,6 +3,8 @@
   const increment = () => {
     count += 1
   }
+
+  console.log("Counter component loaded")
 </script>
 
 <button onclick={increment}>
