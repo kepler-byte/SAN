@@ -1,10 +1,12 @@
 <script>
   import { clearAuth } from "../lib/auth";
-
+  import Navbar from "../Components/Navbar.svelte";
   function logout() {
     clearAuth();
     location.reload();
   }
+
+  
 </script>
 
 <div class="flex flex-col items-center justify-center h-screen bg-gray-50">
