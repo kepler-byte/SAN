@@ -5,6 +5,14 @@
     clearAuth();
     location.reload();
   }
+
+  let currentPage = 'home';
+  
+  function handleNavigation(event) {
+    currentPage = event.detail;
+    // เพิ่มโค้ดสำหรับเปลี่ยนหน้าตรงนี้
+    console.log('Navigate to:', currentPage);
+  }
 </script>
 
 <div class="flex flex-col items-center justify-center h-screen bg-gray-50">
@@ -15,5 +23,8 @@
   >
     Logout
   </button>
-    <Navbar />
+    <Navbar 
+  {currentPage} 
+  on:navigate={handleNavigation} 
+/>
 </div>
