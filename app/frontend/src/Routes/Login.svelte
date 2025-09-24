@@ -2,6 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import { login } from "../lib/api";
   import { setAuthToken } from "../lib/auth";
+  import SAN_logo from "../assets/SAN_logo.svg";
   import toast, { Toaster } from 'svelte-french-toast';
 
   let username = "";
@@ -38,7 +39,7 @@
     <div class="w-full md:w-1/2 p-10 flex flex-col items-center gap-10">
       <!-- Logo -->
       <div class="w-20 h-20 relative">
-        LOGO
+        <img src={SAN_logo} alt="SAN Logo" class="w-full h-full object-contain" />
       </div>
 
       <!-- Title -->

@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher } from "svelte";
   import toast, { Toaster } from 'svelte-french-toast';
+    import SAN_logo from "../assets/SAN_logo.svg";
   import { register } from "../lib/api";
 
   let username = "";
@@ -38,7 +39,9 @@
     <!-- Right Form -->
     <div class="w-full md:w-1/2 p-10 flex flex-col items-center gap-10">
       <!-- Logo -->
-      <div class="w-20 h-20 relative"> … โลโก้ของคุณ … </div>
+      <div class="w-20 h-20 relative">
+                <img src={SAN_logo} alt="SAN Logo" class="w-full h-full object-contain" />
+      </div>
 
       <!-- Title -->
       <h1 class="text-3xl md:text-4xl font-bold text-zinc-950 text-center">
