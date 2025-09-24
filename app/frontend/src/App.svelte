@@ -5,6 +5,7 @@
   import Login from "./Routes/Login.svelte";
   import Register from "./Routes/Register.svelte";
   import Home from "./Routes/Home.svelte";
+  import toast, { Toaster } from 'svelte-french-toast';
 
   let page = "login"; // ค่า default
 
@@ -21,6 +22,7 @@
   }
 </script>
 
+<Toaster position="top-right" />
 {#if !token}
   {#if page === "login"}
     <Login on:navigate={e => handleNavigate(e.detail)} />

@@ -16,6 +16,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.13",
     "page": "^1.11.6",
+    "svelte-french-toast": "^1.2.0",
     "svelte-routing": "^2.13.0",
     "svelte-spa-router": "^4.0.1",
     "tailwindcss": "^4.1.13"

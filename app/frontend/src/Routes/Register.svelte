@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher } from "svelte";
+  import toast, { Toaster } from 'svelte-french-toast';
   import { register } from "../lib/api";
 
   let username = "";
@@ -10,62 +11,98 @@
 
   const dispatch = createEventDispatcher();
 
-  async function handleRegister() {
+  async function handleRegister(e) {
+    e.preventDefault();
     try {
       await register({ username, email, password });
-      success = "Registration successful! Please login.";
+      success = "";
+      toast.success("สมัครสมาชิกสำเร็จ! กำลังพาไปหน้าเข้าสู่ระบบ...");
       error = "";
-      setTimeout(() => {
-        dispatch("navigate", "login");
-      }, 1500);
+      setTimeout(() => dispatch("navigate", "login"), 1500);
     } catch (err) {
+        toast.error("สมัครสมาชิกไม่สำเร็จ");
       error = err.message;
     }
   }
 </script>
 
-<div class="flex justify-center items-center h-screen bg-gray-100">
-  <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
-    <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
+<div class="min-h-screen flex items-center justify-center bg-white px-4">
+  <div class="relative z-10 w-full max-w-4xl bg-white rounded-2xl flex flex-col md:flex-row shadow-lg overflow-hidden">
+    
+    <!-- Left Image -->
+    <div
+      class="hidden md:flex flex-col justify-center p-8 bg-cover bg-center w-1/2 text-white"
+      style="background-image: url('https://images.unsplash.com/photo-1510172951991-856a654063f9?q=80&w=987&auto=format&fit=crop');"
+    ></div>
 
-    {#if error}
-      <p class="text-red-500 text-sm mb-4">{error}</p>
-    {/if}
-    {#if success}
-      <p class="text-green-500 text-sm mb-4">{success}</p>
-    {/if}
+    <!-- Right Form -->
+    <div class="w-full md:w-1/2 p-10 flex flex-col items-center gap-10">
+      <!-- Logo -->
+      <div class="w-20 h-20 relative"> … โลโก้ของคุณ … </div>
 
-    <input
-      type="text"
-      placeholder="Username"
-      bind:value={username}
-      class="w-full mb-4 p-2 border rounded"
-    />
-    <input
-      type="email"
-      placeholder="Email"
-      bind:value={email}
-      class="w-full mb-4 p-2 border rounded"
-    />
-    <input
-      type="password"
-      placeholder="Password"
-      bind:value={password}
-      class="w-full mb-4 p-2 border rounded"
-    />
+      <!-- Title -->
+      <h1 class="text-3xl md:text-4xl font-bold text-zinc-950 text-center">
+        สมัครสมาชิก
+      </h1>
 
-    <button
-      on:click={handleRegister}
-      class="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded"
-    >
-      Register
-    </button>
+      {#if error}
+        <p class="text-red-500 text-sm">{error}</p>
+      {/if}
+      {#if success}
+        <p class="text-green-500 text-sm">{success}</p>
+      {/if}
 
-    <p class="mt-4 text-sm text-center">
-      Already have an account?
-      <a href="#" class="text-blue-500" on:click={() => dispatch("navigate", "login")}>
-        Login
-      </a>
-    </p>
+      <!-- Form -->
+      <form on:submit|preventDefault={handleRegister} class="w-full flex flex-col gap-6">
+        <!-- Username -->
+        <div class="flex flex-col gap-2">
+          <label class="text-xs font-bold text-black">Username</label>
+          <input
+            type="text"
+            bind:value={username}
+            placeholder="MangoLover99"
+            class="w-full h-14 px-4 bg-gray-50 rounded-xl text-base text-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
+          />
+        </div>
+
+        <!-- Email -->
+        <div class="flex flex-col gap-2">
+          <label class="text-xs font-bold text-black">Email</label>
+          <input
+            type="email"
+            bind:value={email}
+            placeholder="🥭 example@mango.tree"
+            class="w-full h-14 px-4 bg-gray-50 rounded-xl text-base text-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
+          />
+        </div>
+
+        <!-- Password -->
+        <div class="flex flex-col gap-2">
+          <label class="text-xs font-bold text-black">Password</label>
+          <input
+            type="password"
+            bind:value={password}
+            placeholder="**********"
+            class="w-full h-14 px-4 bg-gray-50 rounded-xl text-base text-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
+          />
+        </div>
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          class="w-full h-14 bg-orange-500 rounded-2xl shadow-md text-white font-bold text-base hover:bg-orange-600 transition"
+        >
+          สมัครสมาชิก
+        </button>
+
+        <!-- Link to Login -->
+        <div class="flex justify-center gap-2 text-base">
+          <span class="text-gray-500">มีบัญชีอยู่แล้ว?</span>
+          <a href="#" class="text-orange-500 hover:underline" on:click={() => dispatch("navigate", "login")}>
+            เข้าสู่ระบบ
+          </a>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
