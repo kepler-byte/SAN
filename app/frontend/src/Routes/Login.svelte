@@ -8,19 +8,45 @@
   let username = "";
   let password = "";
   let error = "";
+  let isLoading = false; // เพิ่ม loading state
 
   const dispatch = createEventDispatcher();
 
   async function handleLogin(e) {
     e.preventDefault();
+    
+    // ป้องกันการส่งซ้ำ
+    if (isLoading) {
+      return;
+    }
+    
+    // ตรวจสอบข้อมูลก่อนส่ง
+    if (!username.trim()) {
+      error = "กรุณากรอก Username";
+      toast.error("กรุณากรอก Username");
+      return;
+    }
+    
+    if (!password.trim()) {
+      error = "กรุณากรอกรหัสผ่าน";
+      toast.error("กรุณากรอกรหัสผ่าน");
+      return;
+    }
+    
+    // ล้าง error ก่อนทำการส่งข้อมูล
+    error = "";
+    isLoading = true; // เปิด loading state
+    
     try {
       const res = await login({ username, password });
       setAuthToken(res.access_token);
       toast.success("เข้าสู่ระบบสำเร็จ 🎉");
       dispatch("navigate", "dashboard"); // ส่ง event ไป App.svelte
     } catch (err) {
-    toast.error("เข้าสู่ระบบไม่สำเร็จ");
+      toast.error("เข้าสู่ระบบไม่สำเร็จ");
       error = err.message;
+    } finally {
+      isLoading = false; // ปิด loading state
     }
   }
 </script>
@@ -60,6 +86,7 @@
             type="text"
             bind:value={username}
             placeholder="MangoLover99"
+            required
             class="w-full h-14 px-4 bg-gray-50 rounded-xl text-base text-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
@@ -71,6 +98,7 @@
             type="password"
             bind:value={password}
             placeholder="**********"
+            required
             class="w-full h-14 px-4 bg-gray-50 rounded-xl text-base text-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
@@ -78,9 +106,17 @@
         <!-- Submit -->
         <button
           type="submit"
-          class="w-full h-14 bg-orange-500 rounded-2xl shadow-md text-white font-bold text-base hover:bg-orange-600 transition"
+          class="w-full h-14 bg-orange-500 rounded-2xl shadow-md text-white font-bold text-base hover:bg-orange-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={!username.trim() || !password.trim() || isLoading}
         >
-          เข้าสู่ระบบ
+          {#if isLoading}
+            <div class="flex items-center justify-center gap-2">
+              <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              กำลังเข้าสู่ระบบ...
+            </div>
+          {:else}
+            เข้าสู่ระบบ
+          {/if}
         </button>
 
         <!-- Link to Register -->
