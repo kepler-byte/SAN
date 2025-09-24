@@ -5,5 +5,4 @@ passlib[bcrypt]
 python-dotenv
 motor
 pydantic
-pydantic[email]
 pymongo
