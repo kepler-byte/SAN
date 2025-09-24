@@ -1,6 +1,6 @@
 <script>
   import { clearAuth } from "../lib/auth";
-
+  import Navbar from "../Components/Navbar.svelte";
   function logout() {
     clearAuth();
     location.reload();
@@ -15,4 +15,5 @@
   >
     Logout
   </button>
+    <Navbar />
 </div>
