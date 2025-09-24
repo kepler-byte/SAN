@@ -1,9 +1,5 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
-  import { fly } from 'svelte/transition';
-  import Payment from '../Routes/Payment.svelte';
-  import Settings from '../Routes/Settings.svelte';
-
   export let currentPage = 'home'; // รับค่าจาก parent component
   
   let isMobile = false;
@@ -12,10 +8,10 @@
   const dispatch = createEventDispatcher();
 
   const items = [
-    { icon: 'home', label: 'Home', page: 'home' },
-    { icon: 'book', label: 'Document', page: 'document' },
-    { icon: 'account_balance_wallet', label: 'Wallet', page: 'wallet' },
-    { icon: 'settings', label: 'Settings', page: 'settings' }
+    { icon: 'home', label: 'home', page: 'home' },
+    { icon: 'book', label: 'document', page: 'document' },
+    { icon: 'account_balance_wallet', label: 'wallet', page: 'wallet' },
+    { icon: 'settings', label: 'settings', page: 'settings' }
   ];
 
   function checkScreenSize() {
