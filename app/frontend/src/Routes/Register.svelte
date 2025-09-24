@@ -14,6 +14,44 @@
 
   async function handleRegister(e) {
     e.preventDefault();
+    
+    // ตรวจสอบข้อมูลก่อนส่ง
+    if (!username.trim()) {
+      error = "กรุณากรอก Username";
+      toast.error("กรุณากรอก Username");
+      return;
+    }
+    
+    if (!email.trim()) {
+      error = "กรุณากรอก Email";
+      toast.error("กรุณากรอก Email");
+      return;
+    }
+    
+    if (!password.trim()) {
+      error = "กรุณากรอกรหัสผ่าน";
+      toast.error("กรุณากรอกรหัสผ่าน");
+      return;
+    }
+    
+    // ตรวจสอบรูปแบบ email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      error = "รูปแบบ Email ไม่ถูกต้อง";
+      toast.error("รูปแบบ Email ไม่ถูกต้อง");
+      return;
+    }
+    
+    // ตรวจสอบความยาวรหัสผ่าน
+    if (password.length < 6) {
+      error = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+      toast.error("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+    
+    // ล้าง error ก่อนทำการส่งข้อมูล
+    error = "";
+    
     try {
       await register({ username, email, password });
       success = "";
@@ -64,6 +102,7 @@
             type="text"
             bind:value={username}
             placeholder="MangoLover99"
+            required
             class="w-full h-14 px-4 bg-gray-50 rounded-xl text-base text-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
@@ -75,6 +114,7 @@
             type="email"
             bind:value={email}
             placeholder="🥭 example@mango.tree"
+            required
             class="w-full h-14 px-4 bg-gray-50 rounded-xl text-base text-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
@@ -86,6 +126,8 @@
             type="password"
             bind:value={password}
             placeholder="**********"
+            required
+            minlength="6"
             class="w-full h-14 px-4 bg-gray-50 rounded-xl text-base text-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
@@ -93,7 +135,8 @@
         <!-- Submit -->
         <button
           type="submit"
-          class="w-full h-14 bg-orange-500 rounded-2xl shadow-md text-white font-bold text-base hover:bg-orange-600 transition"
+          class="w-full h-14 bg-orange-500 rounded-2xl shadow-md text-white font-bold text-base hover:bg-orange-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={!username.trim() || !email.trim() || !password.trim()}
         >
           สมัครสมาชิก
         </button>
