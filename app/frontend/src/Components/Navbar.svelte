@@ -8,10 +8,10 @@
   const dispatch = createEventDispatcher();
 
   const items = [
-    { icon: 'home', label: 'home', page: 'home' },
-    { icon: 'book', label: 'document', page: 'document' },
-    { icon: 'account_balance_wallet', label: 'wallet', page: 'wallet' },
-    { icon: 'settings', label: 'settings', page: 'settings' }
+    { icon: 'home', label: 'หน้าหลัก', page: 'home' },
+    { icon: 'book', label: 'คลังหนังสือ', page: 'document' },
+    { icon: 'account_balance_wallet', label: 'เติมเงิน', page: 'wallet' },
+    { icon: 'settings', label: 'การตั้งค่า', page: 'settings' }
   ];
 
   function checkScreenSize() {
