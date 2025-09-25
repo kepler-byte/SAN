@@ -5,6 +5,7 @@ from app.database import user_collection
 from app.auth.jwt_handler import get_current_user
 from app.schemas.user import UserResponse
 from pydantic import BaseModel
+from typing import Dict, Any
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -41,6 +42,95 @@ async def update_user_points(
     # Return updated user info
     user = await user_collection.find_one({"username": current_user["username"]})
     return {"points": user.get("points", 0), "message": f"Added {points_to_add} points"}
+
+class UserSettings(BaseModel):
+    readingModeScroll: bool = True
+    darkModeOption: str = "dark"  # "light", "dark", "system"
+    notifications: bool = True
+    autoSave: bool = True
+
+class SettingUpdate(BaseModel):
+    value: Any
+
+@router.get("/me/settings")
+async def get_user_settings(current_user: dict = Depends(get_current_user)):
+    """Get user settings"""
+    user = await user_collection.find_one({"username": current_user["username"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Default settings if none exist
+    default_settings = {
+        "readingModeScroll": True,
+        "darkModeOption": "dark",
+        "notifications": True,
+        "autoSave": True
+    }
+    
+    settings = user.get("settings", default_settings)
+    return {"settings": settings}
+
+@router.patch("/me/settings")
+async def update_user_settings(
+    settings: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    """Update user settings (bulk update)"""
+    # Validate settings keys
+    allowed_keys = {"readingModeScroll", "darkModeOption", "notifications", "autoSave"}
+    
+    # Filter out invalid keys
+    filtered_settings = {k: v for k, v in settings.items() if k in allowed_keys}
+    
+    if not filtered_settings:
+        raise HTTPException(status_code=400, detail="No valid settings provided")
+    
+    # Update settings in database
+    result = await user_collection.update_one(
+        {"username": current_user["username"]},
+        {"$set": {f"settings.{k}": v for k, v in filtered_settings.items()}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get updated settings
+    user = await user_collection.find_one({"username": current_user["username"]})
+    return {
+        "message": "Settings updated successfully",
+        "settings": user.get("settings", {})
+    }
+
+@router.patch("/me/settings/{setting_key}")
+async def update_single_setting(
+    setting_key: str,
+    setting_update: SettingUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a single setting"""
+    # Validate setting key
+    allowed_keys = {"readingModeScroll", "darkModeOption", "notifications", "autoSave"}
+    
+    if setting_key not in allowed_keys:
+        raise HTTPException(status_code=400, detail=f"Invalid setting key. Allowed: {allowed_keys}")
+    
+    # Validate darkModeOption values
+    if setting_key == "darkModeOption" and setting_update.value not in ["light", "dark", "system"]:
+        raise HTTPException(status_code=400, detail="darkModeOption must be 'light', 'dark', or 'system'")
+    
+    # Update single setting
+    result = await user_collection.update_one(
+        {"username": current_user["username"]},
+        {"$set": {f"settings.{setting_key}": setting_update.value}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "message": f"Setting '{setting_key}' updated successfully",
+        "setting": {setting_key: setting_update.value}
+    }
 
 class TrueMoneyPayment(BaseModel):
     voucher: str
