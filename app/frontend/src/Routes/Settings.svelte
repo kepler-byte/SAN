@@ -1,69 +1,57 @@
 <script>
   import { LogOut, Settings, Save, Loader } from "@lucide/svelte";
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
   import { clearAuth } from "../lib/auth";
-  import { getUserSettings, updateSetting } from "../lib/api.js"; // ✨ Import API functions
-  import toast, { Toaster } from 'svelte-french-toast'; // ✨ Toast notifications
+  import { getUserSettings, updateSetting } from "../lib/api.js";
+  import toast from 'svelte-french-toast';
 
   function logout() {
     clearAuth();
     location.reload();
   }
 
-  // Settings state
+  // Component state
   let readingModeScroll = true;
-  let darkModeOption = 'dark';
+  let darkModeOption = 'light'; // default theme
   let showDropdown = false;
-  
-  // ✨ Loading state
   let isLoading = true;
 
   // Close dropdown when clicking outside
   function handleClickOutside(event) {
     const dropdown = document.getElementById('dropdown');
     const button = document.getElementById('dropdown-button');
-    
-    if (dropdown && !dropdown.contains(event.target) && 
-        button && !button.contains(event.target)) {
+    if (dropdown && !dropdown.contains(event.target) && button && !button.contains(event.target)) {
       showDropdown = false;
     }
   }
 
-  // ✨ Load settings from server on mount
-  onMount(async () => {
+  // Load user settings on mount
+  onMount(() => {
     document.addEventListener('click', handleClickOutside);
-    
-    try {
-      // Load settings from server
-      const response = await getUserSettings();
-      const serverSettings = response.settings;
-      
-      // Update local state with server settings
-      readingModeScroll = serverSettings.readingModeScroll ?? true;
-      darkModeOption = serverSettings.darkModeOption ?? 'dark';
-      
-      // Apply theme
-      setDarkMode(darkModeOption, false); // false = don't save to server
-      
-      console.log('🎉 Settings loaded from server:', serverSettings);
-    } catch (error) {
-      console.error('❌ Failed to load settings:', error);
-      // Fallback to localStorage if server fails
-      const savedTheme = localStorage.getItem('darkModePreference') || 'dark';
-      setDarkMode(savedTheme, false);
-    } finally {
-      isLoading = false;
-    }
-    
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
+
+    (async () => {
+      try {
+        const response = await getUserSettings();
+        const serverSettings = response.settings;
+        readingModeScroll = serverSettings.readingModeScroll ?? true;
+        darkModeOption = serverSettings.darkModeOption ?? 'dark';
+        setDarkMode(darkModeOption, false);
+        console.log('Settings loaded from server:', serverSettings);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        const savedTheme = localStorage.getItem('darkModePreference') || 'dark';
+        setDarkMode(savedTheme, false);
+      } finally {
+        isLoading = false;
+      }
+    })();
+
+    return () => document.removeEventListener('click', handleClickOutside);
   });
 
-  // ✨ Save setting to server with toast notifications
+  // Save a single setting to the server with a toast
   async function saveSetting(key, value) {
     const savePromise = updateSetting(key, value);
-    
     toast.promise(savePromise, {
       loading: 'กำลังบันทึก...',
       success: 'บันทึกสำเร็จ!',
@@ -72,12 +60,13 @@
 
     try {
       await savePromise;
-      console.log(`✅ ${key} saved:`, value);
+      console.log(`${key} saved:`, value);
     } catch (error) {
-      console.error(`❌ Failed to save ${key}:`, error);
+      console.error(`Failed to save ${key}:`, error);
     }
   }
 
+  // Apply theme and optionally persist to server
   function setDarkMode(option, saveToServer = true) {
     darkModeOption = option;
     showDropdown = false;
@@ -88,29 +77,17 @@
       document.documentElement.classList.remove("dark");
     } else if (option === 'system') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      document.documentElement.classList.toggle('dark', prefersDark);
     }
 
-    // Save to localStorage for immediate access
     localStorage.setItem('darkModePreference', option);
-    
-    // ✨ Save to server
-    if (saveToServer) {
-      saveSetting('darkModeOption', option);
-    }
-    
-    console.log('🎨 Dark Mode selected:', option);
+    if (saveToServer) saveSetting('darkModeOption', option);
   }
 
-  // ✨ Handle reading mode toggle with server sync
+  // Toggle reading mode and persist
   async function handleReadingModeToggle() {
     readingModeScroll = !readingModeScroll;
     await saveSetting('readingModeScroll', readingModeScroll);
-    console.log('📖 Reading Mode toggled:', readingModeScroll);
   }
 
   function toggleDropdown() {
