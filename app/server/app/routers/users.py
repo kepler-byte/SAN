@@ -145,3 +145,43 @@ async def process_truemoney_payment(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/me/payment/history")
+async def get_payment_history(
+    current_user: dict = Depends(get_current_user),
+    limit: int = 20,  # Number of records to return
+    skip: int = 0     # Number of records to skip (for pagination)
+):
+    """Get user's payment history"""
+    user = await user_collection.find_one({"username": current_user["username"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get payment history from user document
+    payment_history = user.get("payment_history", [])
+    
+    # Sort by timestamp (newest first) and apply pagination
+    sorted_history = sorted(payment_history, key=lambda x: x.get("timestamp", datetime.min), reverse=True)
+    paginated_history = sorted_history[skip:skip + limit]
+    
+    # Format the response
+    formatted_history = []
+    for payment in paginated_history:
+        formatted_payment = {
+            "id": str(payment.get("voucher_id", "")),
+            "type": payment.get("type", "unknown"),
+            "amount_baht": payment.get("amount_baht", 0),
+            "points_added": payment.get("points_added", 0),
+            "phone": payment.get("phone", ""),
+            "timestamp": payment.get("timestamp"),
+            "status": payment.get("status", "unknown"),
+            "created_at": payment.get("timestamp").strftime("%Y-%m-%d %H:%M:%S") if payment.get("timestamp") else None
+        }
+        formatted_history.append(formatted_payment)
+    
+    return {
+        "history": formatted_history,
+        "total_records": len(payment_history),
+        "current_page": skip // limit + 1,
+        "has_more": skip + limit < len(payment_history)
+    }

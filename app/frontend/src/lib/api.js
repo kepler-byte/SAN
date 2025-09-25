@@ -14,7 +14,7 @@ export async function register(userData) {
         throw new Error(error.detail || 'Registration failed');
     }
     
-    return response.json(); // ✅ Missing return statement
+    return response.json();
 }
 
 export async function login(credentials) {
@@ -29,6 +29,28 @@ export async function login(credentials) {
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || 'Login failed');
+    }
+    
+    return response.json(); // ✅ Added missing return statement
+}
+
+// New function to get payment history
+export async function getPaymentHistory(limit = 20, skip = 0) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/payment/history?limit=${limit}&skip=${skip}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get payment history');
     }
     
     return response.json();
