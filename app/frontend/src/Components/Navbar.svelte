@@ -49,17 +49,17 @@
 
 {#if isMobile}
   <!-- Mobile Navbar -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center py-3 z-10 md:hidden">
+  <nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-around items-center py-3 z-10 md:hidden">
     {#each items as item (item.label)}
       <button
         class="flex flex-col items-center justify-center transition-colors duration-200"
         aria-label={item.label}
         on:click={() => navigateTo(item.page)}
       >
-        <span class="material-symbols-outlined text-xl transition-colors duration-200 {currentPage === item.page ? 'text-orange-500' : 'text-gray-500'}">
+        <span class="material-symbols-outlined text-xl transition-colors duration-200 {currentPage === item.page ? 'text-orange-500' : 'text-gray-500 dark:text-gray-400'}">
           {item.icon}
         </span>
-        <span class="text-xs mt-1 transition-colors duration-200 {currentPage === item.page ? 'text-orange-500 font-medium' : 'text-gray-500'}">
+        <span class="text-xs mt-1 transition-colors duration-200 {currentPage === item.page ? 'text-orange-500 font-medium' : 'text-gray-500 dark:text-gray-400'}">
           {item.label}
         </span>
       </button>
@@ -67,24 +67,24 @@
   </nav>
 {:else}
   <!-- Desktop Sidebar -->
-  <aside class="hidden md:flex md:flex-col md:w-20 hover:md:w-48 md:h-screen md:bg-white md:border-r md:border-gray-200 md:fixed md:top-0 md:left-0 md:bottom-0 md:transition-all md:duration-300 md:ease-in-out md:z-10">
+  <aside class="hidden md:flex md:flex-col md:w-20 hover:md:w-48 md:h-screen md:bg-white dark:md:bg-gray-800 md:border-r md:border-gray-200 dark:md:border-gray-700 md:fixed md:top-0 md:left-0 md:bottom-0 md:transition-all md:duration-300 md:ease-in-out md:z-10">
     <div class="flex flex-col py-6 space-y-2 w-full">
       {#each items as item (item.label)}
         <button
-          class="flex items-center w-full hover:bg-gray-50 transition-all duration-200 group relative {currentPage === item.page ? 'bg-orange-50 border-r-2 border-orange-500' : ''}"
+          class="flex items-center w-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 group relative {currentPage === item.page ? 'bg-orange-50 dark:bg-orange-900/20 border-r-2 border-orange-500' : ''}"
           aria-label={item.label}
           on:mouseenter={() => handleMouseEnter(item)}
           on:mouseleave={handleMouseLeave}
           on:click={() => navigateTo(item.page)}
         >
-          <!-- Icon Container - ตรงกลางเมื่อไม่ hover -->
+          <!-- Icon Container -->
           <div class="w-20 flex justify-center py-3">
-            <span class="material-symbols-outlined text-2xl transition-colors duration-200 {currentPage === item.page ? 'text-orange-500' : 'text-gray-500'} group-hover:text-orange-500">
+            <span class="material-symbols-outlined text-2xl transition-colors duration-200 {currentPage === item.page ? 'text-orange-500' : 'text-gray-500 dark:text-gray-400'} group-hover:text-orange-500">
               {item.icon}
             </span>
           </div>
-          <!-- Text - แสดงเมื่อ hover -->
-          <span class="absolute left-20 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none {currentPage === item.page ? 'text-orange-500' : 'text-gray-500'} group-hover:text-orange-500">
+          <!-- Text on hover -->
+          <span class="absolute left-20 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none {currentPage === item.page ? 'text-orange-500' : 'text-gray-500 dark:text-gray-400'} group-hover:text-orange-500">
             {item.label}
           </span>
         </button>
@@ -102,14 +102,9 @@
       'opsz' 24
   }
 
-  /* เพิ่ม custom hover effect */
+  /* Hover shadow for sidebar */
   aside:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  /* Active state animation */
-  button {
-    position: relative;
   }
 
   /* Mobile active indicator */

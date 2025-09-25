@@ -31,7 +31,7 @@ export async function login(credentials) {
         throw new Error(error.detail || 'Login failed');
     }
     
-    return response.json(); // ✅ Added missing return statement
+    return response.json();
 }
 
 // New function to get payment history
@@ -120,6 +120,76 @@ export async function processTrueMoneyPayment(voucher, phone) {
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || 'Payment failed');
+    }
+    
+    return response.json();
+}
+
+// ✨ NEW: Get user settings
+export async function getUserSettings() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/settings`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get settings');
+    }
+    
+    return response.json();
+}
+
+// ✨ NEW: Update user settings
+export async function updateUserSettings(settings) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/settings`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update settings');
+    }
+    
+    return response.json();
+}
+
+// ✨ NEW: Update specific setting
+export async function updateSetting(key, value) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/settings/${key}`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ value })
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update setting');
     }
     
     return response.json();
