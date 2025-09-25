@@ -99,6 +99,11 @@
     error = null;
   }
 
+  function closeTrueMoneyModal() {
+    showTrueMoneyModal = false;
+    error = null;
+  }
+
   // Close modal
   function closeModal() {
     showAddPointsModal = false;
