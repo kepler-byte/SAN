@@ -332,7 +332,6 @@
         </p>
         <ol class="text-xs font-['LINE_Seed_Sans_TH'] text-blue-700 list-decimal list-inside space-y-1">
           <li>เปิดแอป TrueMoney Wallet</li>
-          <li>ส่งเงินให้เพื่อน (เบอร์ 096-668-0754)</li>
           <li>คัดลอก Link หรือ Hash ที่ได้</li>
           <li>นำมาใส่ในช่องด้านล่าง</li>
         </ol>
