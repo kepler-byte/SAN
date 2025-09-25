@@ -125,7 +125,7 @@
   </div>
 {:else}
   <!-- Authenticated Dashboard -->
-  <main class="min-h-screen bg-gray-50">
+  <main class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <!-- Navbar -->
     <Navbar 
       {currentPage} 
