@@ -16,6 +16,20 @@
   let showDropdown = false;
   let isLoading = true;
 
+  // เพิ่มตัวแปร state
+  let autoSaveEnabled = true;
+
+  // ✅ toggle โดยอิงค่าจาก event.target.checked
+  function handleAutoSaveToggle(event) {
+    autoSaveEnabled = event.target.checked;
+    saveSetting('autoSaveEnabled', autoSaveEnabled);
+  }
+
+  function handleReadingModeToggle(event) {
+    readingModeScroll = event.target.checked;
+    saveSetting('readingModeScroll', readingModeScroll);
+  }
+
   // Close dropdown when clicking outside
   function handleClickOutside(event) {
     const dropdown = document.getElementById('dropdown');
@@ -35,6 +49,7 @@
         const serverSettings = response.settings;
         readingModeScroll = serverSettings.readingModeScroll ?? true;
         darkModeOption = serverSettings.darkModeOption ?? 'dark';
+        autoSaveEnabled = serverSettings.autoSaveEnabled ?? true;
         setDarkMode(darkModeOption, false);
         console.log('Settings loaded from server:', serverSettings);
       } catch (error) {
@@ -51,6 +66,12 @@
 
   // Save a single setting to the server with a toast
   async function saveSetting(key, value) {
+    // ✅ ถ้า Auto Save ถูกปิด และ key ไม่ใช่ autoSaveEnabled → ไม่ต้องบันทึกอะไรเลย
+    if (!autoSaveEnabled && key !== 'autoSaveEnabled') {
+      console.log(`Auto Save ปิด → ข้ามการบันทึก ${key}`);
+      return;
+    }
+
     const savePromise = updateSetting(key, value);
     toast.promise(savePromise, {
       loading: 'กำลังบันทึก...',
@@ -82,12 +103,6 @@
 
     localStorage.setItem('darkModePreference', option);
     if (saveToServer) saveSetting('darkModeOption', option);
-  }
-
-  // Toggle reading mode and persist
-  async function handleReadingModeToggle() {
-    readingModeScroll = !readingModeScroll;
-    await saveSetting('readingModeScroll', readingModeScroll);
   }
 
   function toggleDropdown() {
@@ -208,7 +223,7 @@
         </div>
       </div>
 
-      <!-- ✨ New Settings Section -->
+      <!-- Auto Save -->
       <div class="flex items-center justify-between px-6 py-5">
         <div class="flex-1">
           <h3 class="text-base font-bold text-gray-900 dark:text-gray-100">
@@ -220,11 +235,11 @@
           <input 
             type="checkbox" 
             class="sr-only peer" 
-            checked={true}
-            disabled
+            bind:checked={autoSaveEnabled}
+            on:change={handleAutoSaveToggle}
           />
-          <div class="w-11 h-6 bg-green-500 peer-focus:outline-none rounded-full peer transition-colors duration-200 opacity-75"></div>
-          <div class="absolute left-0.5 top-0.5 size-5 bg-white rounded-full transition-transform duration-200 translate-x-5"></div>
+          <div class="w-11 h-6 bg-gray-300 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:bg-green-500 transition-colors duration-200"></div>
+          <div class="absolute left-0.5 top-0.5 size-5 bg-white rounded-full transition-transform duration-200 peer-checked:translate-x-5"></div>
         </label>
       </div>
 
