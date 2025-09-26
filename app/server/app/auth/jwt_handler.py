@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from app.config import SECRET_KEY, ALGORITHM
+from app.database import user_collection
 
 security = HTTPBearer()
 
@@ -16,7 +17,7 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verify JWT token and return current user"""
+    """Verify JWT token and return current user with fresh data from DB"""
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -26,7 +27,22 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials"
             )
-        return {"username": username}
+        
+        # ✨ NEW: ดึงข้อมูล user จาก DB ทุกครั้งเพื่อให้ได้ role และข้อมูลล่าสุด
+        user = await user_collection.find_one({"username": username})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        return {
+            "username": user["username"],
+            "role": user.get("role", "reader"),  # ✨ เพิ่ม role
+            "email": user.get("email", ""),
+            "user_id": str(user["_id"])
+        }
+        
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
