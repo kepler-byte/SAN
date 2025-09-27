@@ -13,8 +13,8 @@
   import Home from "./Routes/Home.svelte";
   import Wallet from "./Routes/Wallet.svelte";
   import Settings from "./Routes/Settings.svelte";
-  import Storebooks from "./Routes/Storebooks.svelte";
   import Bookpreview from "./Routes/Bookpreview.svelte";
+  import BookTest from "./Routes/BookTest.svelte";
 
   import toast, { Toaster } from "svelte-french-toast";
 
@@ -30,7 +30,7 @@
     home: Home,
     wallet: Wallet,
     settings: Settings,
-    storebooks: Storebooks,
+    booktest: BookTest,
     bookpreview: Bookpreview,
   };
 
