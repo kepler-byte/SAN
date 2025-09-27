@@ -28,3 +28,8 @@ web/build/
 .idea/
 *.swp
 *.swo
+
+# Static files
+static/covers/
+static/
+.DS_Store
