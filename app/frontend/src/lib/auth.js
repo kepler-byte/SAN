@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { getCurrentUser } from './api.js';
 
 // สร้าง store สำหรับจัดการ auth state
 export const authToken = writable(localStorage.getItem('token') || null);
@@ -20,4 +21,22 @@ export function clearAuth() {
 // ตรวจสอบ token
 export function isAuthenticated() {
     return localStorage.getItem('token') !== null;
+}
+
+export async function syncUserData() {
+  try {
+    const userData = await getCurrentUser();
+    currentUser.set(userData);
+    return userData;
+  } catch (error) {
+    console.error('Failed to sync user data:', error);
+    return null;
+  }
+}
+
+export function updateUserPoints(newPoints) {
+  currentUser.update(user => ({
+    ...user,
+    points: newPoints
+  }));
 }
