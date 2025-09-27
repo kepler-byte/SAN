@@ -1,13 +1,10 @@
 <script>
   import { House, Search, CircleAlert, Bookmark, Filter } from "@lucide/svelte";
-  import { createEventDispatcher, onMount } from "svelte";
-  import { getAllBooks, getCurrentUser, getBooksByCategory } from "../lib/api.js";
+  import { createEventDispatcher, onMount, onDestroy } from "svelte";
+  import { getAllBooks, getCurrentUser, getBooksByCategory, getBookCover } from "../lib/api.js";
   import SANPoint from "../assets/SAN_Point_White.svg";
 
   const dispatch = createEventDispatcher();
-
-  // Configurable API base (use Vite env var)
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
   // User state
   let username = "User";
@@ -31,6 +28,10 @@
 
   // Category loading state
   let categoryLoading = false;
+
+  // Cover image cache and cleanup
+  let coverObjectUrls = new Map(); // Map book ID to object URL
+  let objectUrlsForCleanup = []; // Array to track all created URLs for cleanup
 
   // Reactive derived data
   $: filteredBooks = (() => {
@@ -60,25 +61,63 @@
     ? filteredBooks.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     : filteredBooks;
 
+  // Enhanced book mapping with cover loading
   $: displayedPopular = booksToDisplay
     .slice(0, 10)
     .map((book) => ({
       ...book,
       price: book.price ?? 0,
-      cover: book.cover
-        ? `${API_BASE}${book.cover}`
-        : `https://images.unsplash.com/photo-${Math.random().toString(36).substr(2, 9)}?w=400&h=600&fit=crop`,
+      coverUrl: coverObjectUrls.get(book.id) || getPlaceholderImage(),
+      isLoadingCover: false
     }));
 
-  $: displayedNew = booksToDisplay
-    .slice(0, 5)
-    .map((book) => ({
-      ...book,
-      price: book.price ?? 0,
-      cover: book.cover
-        ? `${API_BASE}${book.cover}`
-        : `https://images.unsplash.com/photo-${Math.random().toString(36).substr(2, 9)}?w=400&h=600&fit=crop`,
-    }));
+  // Clean up object URLs when component is destroyed
+  onDestroy(() => {
+    objectUrlsForCleanup.forEach(url => {
+      URL.revokeObjectURL(url);
+    });
+    coverObjectUrls.clear();
+  });
+
+  // Function to get placeholder image
+  function getPlaceholderImage() {
+    return `https://images.unsplash.com/photo-${Math.random().toString(36).substr(2, 9)}?w=400&h=600&fit=crop`;
+  }
+
+  // Function to load cover image for a book
+  async function loadBookCover(bookId) {
+    if (coverObjectUrls.has(bookId)) {
+      return; // Already loaded
+    }
+
+    try {
+      const blob = await getBookCover(bookId);
+      if (blob) {
+        const objectUrl = URL.createObjectURL(blob);
+        coverObjectUrls.set(bookId, objectUrl);
+        objectUrlsForCleanup.push(objectUrl);
+        
+        // Trigger reactivity
+        coverObjectUrls = coverObjectUrls;
+      }
+    } catch (error) {
+      console.error(`Failed to load cover for book ${bookId}:`, error);
+      // Set a placeholder or error image
+      coverObjectUrls.set(bookId, getPlaceholderImage());
+      coverObjectUrls = coverObjectUrls;
+    }
+  }
+
+  // Load covers for visible books
+  $: {
+    if (displayedPopular.length > 0) {
+      displayedPopular.forEach(book => {
+        if (book.has_cover && !coverObjectUrls.has(book.id)) {
+          loadBookCover(book.id);
+        }
+      });
+    }
+  }
 
   // Fetch data on mount
   onMount(async () => {
@@ -98,8 +137,18 @@
 
       console.log(
         "Loaded books:",
-        allBooks.map((b) => ({ title: b.title, price: b.price }))
+        allBooks.map((b) => ({ 
+          title: b.title, 
+          price: b.price, 
+          has_cover: b.has_cover,
+          id: b.id 
+        }))
       );
+
+      // Start loading covers for books that have them
+      const booksWithCovers = allBooks.filter(book => book.has_cover);
+      console.log(`Found ${booksWithCovers.length} books with covers, starting to load...`);
+      
     } catch (err) {
       console.error("Failed to load data:", err);
       error = err.message || "ไม่สามารถโหลดข้อมูลได้";
@@ -185,6 +234,12 @@
     
     return title;
   }
+
+  // Handle image error (fallback)
+  function handleImageError(event, book) {
+    console.log(`Image failed to load for book: ${book.title}`);
+    event.target.src = "https://placehold.co/160x240/cccccc/666666?text=No+Image";
+  }
 </script>
 
 <div
@@ -242,54 +297,53 @@
     </div>
 
     <!-- Search + Filter -->
-<div class="relative">
-  <div
-    class="flex items-center justify-between bg-white px-3 py-2 rounded-lg shadow"
-  >
-    <input
-      type="text"
-      placeholder="ค้นหาหนังสือของคุณ"
-      class="flex-1 text-sm text-gray-500 focus:outline-none"
-      bind:value={searchQuery}
-      aria-label="ค้นหาหนังสือ"
-    />
-    <button
-      class="p-2 bg-orange-400 rounded-md"
-      on:click={() => showFilterDropdown = !showFilterDropdown}
-      aria-label="ตัวกรองหนังสือ"
-    >
-      <Filter class="w-4 h-4 text-white" />
-    </button>
-  </div>
-
-  <!-- Dropdown Filter -->
-  {#if showFilterDropdown}
-    <div
-      class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
-    >
-      <div class="p-2">
-        {#each filterCategories as filter}
-          <button
-            class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-orange-100
-                   {selectedFilter === filter ? 'bg-orange-400 text-white font-medium' : 'text-gray-700'}"
-            on:click={() => handleFilterChange(filter)}
-          >
-            {filter}
-          </button>
-        {/each}
-        {#if selectedFilter}
-          <button
-            class="mt-2 w-full text-left px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200"
-            on:click={clearFilters}
-          >
-            ล้างตัวกรองทั้งหมด
-          </button>
-        {/if}
+    <div class="relative">
+      <div
+        class="flex items-center justify-between bg-white px-3 py-2 rounded-lg shadow"
+      >
+        <input
+          type="text"
+          placeholder="ค้นหาหนังสือของคุณ"
+          class="flex-1 text-sm text-gray-500 focus:outline-none"
+          bind:value={searchQuery}
+          aria-label="ค้นหาหนังสือ"
+        />
+        <button
+          class="p-2 bg-orange-400 rounded-md"
+          on:click={() => showFilterDropdown = !showFilterDropdown}
+          aria-label="ตัวกรองหนังสือ"
+        >
+          <Filter class="w-4 h-4 text-white" />
+        </button>
       </div>
-    </div>
-  {/if}
-</div>
 
+      <!-- Dropdown Filter -->
+      {#if showFilterDropdown}
+        <div
+          class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
+        >
+          <div class="p-2">
+            {#each filterCategories as filter}
+              <button
+                class="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-orange-100
+                       {selectedFilter === filter ? 'bg-orange-400 text-white font-medium' : 'text-gray-700'}"
+                on:click={() => handleFilterChange(filter)}
+              >
+                {filter}
+              </button>
+            {/each}
+            {#if selectedFilter}
+              <button
+                class="mt-2 w-full text-left px-3 py-2 text-sm rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200"
+                on:click={clearFilters}
+              >
+                ล้างตัวกรองทั้งหมด
+              </button>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    </div>
 
     <!-- Categories -->
     <div class="flex gap-3 justify-center">
@@ -325,7 +379,7 @@
         </h2>
         <!-- Grid Layout for Books -->
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {#each displayedPopular as book}
+          {#each displayedPopular as book (book.id)}
             <div
               class="cursor-pointer transform hover:scale-105 transition-transform duration-200"
               on:click={() => handleBookClick(book)}
@@ -335,15 +389,22 @@
               aria-label={`ดูหนังสือ ${book.title}`}
             >
               <div class="relative">
-                <img
-                  src={book.cover}
-                  alt={book.title}
-                  class="w-full aspect-[3/4.2] object-cover rounded-md shadow hover:shadow-lg transition-shadow duration-200"
-                  on:error={(e) => {
-                    e.target.src =
-                      "https://placehold.co/160x240/cccccc/666666?text=No+Image";
-                  }}
-                />
+                <!-- Show loading spinner while cover is loading -->
+                {#if book.has_cover && !coverObjectUrls.has(book.id)}
+                  <div class="w-full aspect-[3/4.2] bg-gray-200 rounded-md flex items-center justify-center">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-400"></div>
+                  </div>
+                {:else}
+                  <img
+                    src={book.has_cover && coverObjectUrls.has(book.id) 
+                      ? coverObjectUrls.get(book.id) 
+                      : "https://placehold.co/160x240/cccccc/666666?text=No+Image"}
+                    alt={book.title}
+                    class="w-full aspect-[3/4.2] object-cover rounded-md shadow hover:shadow-lg transition-shadow duration-200"
+                    on:error={(e) => handleImageError(e, book)}
+                  />
+                {/if}
+                
                 <!-- Price Badge -->
                 <div
                   class="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm"

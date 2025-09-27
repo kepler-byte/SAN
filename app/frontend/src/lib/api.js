@@ -85,20 +85,50 @@ export async function addPoints(pointsToAdd) {
         throw new Error('No token found');
     }
 
-    const response = await fetch(`${API_BASE}/users/me/points?points_to_add=${pointsToAdd}`, {
-        method: 'PATCH',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-        },
-    });
-    
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to add points');
+    // Validate points
+    if (!pointsToAdd || pointsToAdd <= 0) {
+        throw new Error('Points must be greater than 0');
     }
-    
-    return response.json();
+
+    try {
+        const response = await fetch(`${API_BASE}/users/me/points?points_to_add=${pointsToAdd}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            // เพิ่ม mode สำหรับ CORS
+            mode: 'cors',
+        });
+
+        // Check if response is ok
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}`;
+            
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorMessage;
+            } catch (jsonError) {
+                console.warn('Could not parse error response as JSON');
+            }
+            
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        return result;
+        
+    } catch (error) {
+        // Handle different types of errors
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            throw new Error('Cannot connect to server. Please check if the backend is running.');
+        } else if (error.name === 'SyntaxError') {
+            throw new Error('Server returned invalid response. Please try again.');
+        } else {
+            throw error;
+        }
+    }
 }
 
 // Process TrueMoney payment
@@ -195,8 +225,8 @@ export async function updateSetting(key, value) {
     return response.json();
 }
 
-// Upload a book (admin only) - Updated with category support
-export async function uploadBook(bookData, coverFile = null) {
+// 🆕 UPDATED: Upload a book with PDF support (admin only)
+export async function uploadBook(bookData, coverFile = null, pdfFile = null) {
     const token = localStorage.getItem('token');
     if (!token) {
         throw new Error('No token found');
@@ -214,6 +244,11 @@ export async function uploadBook(bookData, coverFile = null) {
         formData.append('cover_file', coverFile);
     }
 
+    // 🆕 NEW: Append PDF file if provided
+    if (pdfFile) {
+        formData.append('pdf_file', pdfFile);
+    }
+
     const response = await fetch(`${API_BASE}/books/`, {
         method: 'POST',
         headers: {
@@ -229,6 +264,7 @@ export async function uploadBook(bookData, coverFile = null) {
     
     return response.json();
 }
+
 // Get book details by ID
 export async function getBookDetail(bookId) {
     const token = localStorage.getItem('token');
@@ -251,7 +287,142 @@ export async function getBookDetail(bookId) {
     return response.json();
 }
 
-// ✨ NEW: Get all available categories
+// 🆕 NEW: Get book cover image from GridFS
+export async function getBookCover(bookId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/${bookId}/cover`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    
+    if (!response.ok) {
+        if (response.status === 404) {
+            return null; // No cover available
+        }
+        const error = await response.json().catch(() => ({ detail: 'Failed to get cover' }));
+        throw new Error(error.detail || 'Failed to get book cover');
+    }
+    
+    return response.blob(); // Return image blob
+}
+
+// Helper function to create object URL from book ID
+export async function getBookCoverObjectUrl(bookId) {
+    try {
+        const blob = await getBookCover(bookId);
+        if (!blob) return null;
+        return URL.createObjectURL(blob);
+    } catch (error) {
+        console.error('Failed to get cover URL:', error);
+        return null;
+    }
+}
+
+// 🆕 NEW: Get book cover URL (for img src)
+export function getBookCoverUrl(bookId) {
+    const token = localStorage.getItem('token');
+    return `${API_BASE}/books/${bookId}/cover?token=${encodeURIComponent(token)}`;
+}
+
+// 🆕 NEW: Read book (stream PDF)
+export async function readBook(bookId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/${bookId}/read`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Failed to read book' }));
+        throw new Error(error.detail || 'Failed to read book');
+    }
+    
+    return response.blob(); // Return PDF blob
+}
+
+// 🆕 NEW: Get PDF URL for embedding (for iframe src)
+export function getBookReadUrl(bookId) {
+    const token = localStorage.getItem('token');
+    return `${API_BASE}/books/${bookId}/read?token=${encodeURIComponent(token)}`;
+}
+
+// 🆕 NEW: Download book PDF
+export async function downloadBook(bookId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/${bookId}/download`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Failed to download book' }));
+        throw new Error(error.detail || 'Failed to download book');
+    }
+    
+    // Get filename from response headers
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'book.pdf';
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+        if (filenameMatch) {
+            filename = filenameMatch[1];
+        }
+    }
+    
+    const blob = await response.blob();
+    
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    return { success: true, filename };
+}
+
+// 🆕 NEW: Delete book (admin only)
+export async function deleteBook(bookId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/${bookId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to delete book');
+    }
+    
+    return response.json();
+}
+
+// Get all available categories
 export async function getBookCategories() {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -273,7 +444,7 @@ export async function getBookCategories() {
     return response.json();
 }
 
-// ✨ UPDATED: Get all books with enhanced filtering
+// Get all books with enhanced filtering
 export async function getAllBooks(skip = 0, limit = 10, options = {}) {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -317,7 +488,7 @@ export async function getAllBooks(skip = 0, limit = 10, options = {}) {
     return response.json();
 }
 
-// ✨ NEW: Get books by specific category
+// Get books by specific category
 export async function getBooksByCategory(category, skip = 0, limit = 20) {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -339,7 +510,7 @@ export async function getBooksByCategory(category, skip = 0, limit = 20) {
     return response.json();
 }
 
-// ✨ NEW: Get category statistics
+// Get category statistics
 export async function getCategoryStats() {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -361,7 +532,142 @@ export async function getCategoryStats() {
     return response.json();
 }
 
-// ✨ DEPRECATED: Use getAllBooks with options instead
+// 🆕 NEW: Get storage statistics (admin only)
+export async function getStorageStats() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/stats/storage`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get storage stats');
+    }
+    
+    return response.json();
+}
+
+// DEPRECATED: Use getAllBooks with options instead
 export async function searchBooks(query = '', skip = 0, limit = 20) {
     return getAllBooks(skip, limit, { search: query });
+}
+
+// Purchase a book with points
+export async function purchaseBook(bookId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/purchase/book`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ book_id: bookId })
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to purchase book');
+    }
+    
+    return response.json();
+}
+
+// Get user's library (purchased books)
+export async function getUserLibrary(skip = 0, limit = 20) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/library?skip=${skip}&limit=${limit}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get library');
+    }
+    
+    return response.json();
+}
+
+// Check if user owns a specific book
+export async function checkBookOwnership(bookId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/library/check/${bookId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to check ownership');
+    }
+    
+    return response.json();
+}
+
+// Get user statistics
+export async function getUserStats() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/stats`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get user stats');
+    }
+    
+    return response.json();
+}
+
+// Remove book from library
+export async function removeBookFromLibrary(bookId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/users/me/library/${bookId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to remove book');
+    }
+    
+    return response.json();
 }

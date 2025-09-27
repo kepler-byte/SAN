@@ -1,13 +1,32 @@
 import httpx
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.database import user_collection
+from app.database import book_collection
 from app.auth.jwt_handler import get_current_user
 from app.schemas.user import UserResponse
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, List
+from bson import ObjectId
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+class BookPurchase(BaseModel):
+    book_id: str
+
+class UserLibraryBook(BaseModel):
+    book_id: str
+    title: str
+    author: str
+    price_paid: int
+    purchase_date: datetime
+    has_pdf: bool
+    has_cover: bool
+
+class UserLibraryResponse(BaseModel):
+    books: List[UserLibraryBook]
+    total_books: int
+    total_spent: int
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
@@ -25,23 +44,47 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
         settings=user.get("settings", {})
     )
 
+@router.options("/me/points")
+async def options_points():
+    return Response(status_code=200)
+
 @router.patch("/me/points")
 async def update_user_points(
     points_to_add: int, 
     current_user: dict = Depends(get_current_user)
 ):
     """Add points to current user"""
-    result = await user_collection.update_one(
-        {"username": current_user["username"]},
-        {"$inc": {"points": points_to_add}}
-    )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Return updated user info
-    user = await user_collection.find_one({"username": current_user["username"]})
-    return {"points": user.get("points", 0), "message": f"Added {points_to_add} points"}
+    try:
+        # ตรวจสอบว่า points_to_add เป็น positive number
+        if points_to_add <= 0:
+            raise HTTPException(
+                status_code=400, 
+                detail="Points to add must be greater than 0"
+            )
+        
+        result = await user_collection.update_one(
+            {"username": current_user["username"]},
+            {"$inc": {"points": points_to_add}}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Return updated user info
+        user = await user_collection.find_one({"username": current_user["username"]})
+        return {
+            "points": user.get("points", 0), 
+            "message": f"Added {points_to_add} points successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in update_user_points: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Internal server error occurred while updating points"
+        )
 
 class UserSettings(BaseModel):
     readingModeScroll: bool = True
@@ -275,3 +318,237 @@ async def get_payment_history(
         "current_page": skip // limit + 1,
         "has_more": skip + limit < len(payment_history)
     }
+
+@router.post("/me/purchase/book")
+async def purchase_book(
+    book_purchase: BookPurchase,
+    current_user: dict = Depends(get_current_user)
+):
+    """Purchase a book with user points"""
+    try:
+        # Validate book ID
+        if not ObjectId.is_valid(book_purchase.book_id):
+            raise HTTPException(status_code=400, detail="Invalid book ID format")
+        
+        # Get book details
+        book = await book_collection.find_one({"_id": ObjectId(book_purchase.book_id)})
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+        
+        # Get current user
+        user = await user_collection.find_one({"username": current_user["username"]})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Check if book is free
+        book_price = book.get("price", 0)
+        if book_price == 0:
+            # Free book - just add to library without deducting points
+            pass
+        else:
+            # Check if user has enough points
+            user_points = user.get("points", 0)
+            if user_points < book_price:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Insufficient points. Required: {book_price}, Available: {user_points}"
+                )
+        
+        # Check if user already owns the book
+        user_library = user.get("library", [])
+        for book_entry in user_library:
+            if str(book_entry.get("book_id")) == book_purchase.book_id:
+                raise HTTPException(status_code=400, detail="Book already owned")
+        
+        # Prepare library entry
+        library_entry = {
+            "book_id": book_purchase.book_id,
+            "title": book.get("title", ""),
+            "author": book.get("author", ""),
+            "price_paid": book_price,
+            "purchase_date": datetime.utcnow(),
+            "has_pdf": book.get("pdf_id") is not None,
+            "has_cover": book.get("cover_id") is not None
+        }
+        
+        # Update user record
+        update_operations = {
+            "$push": {"library": library_entry}
+        }
+        
+        # Deduct points only if book is not free
+        if book_price > 0:
+            update_operations["$inc"] = {"points": -book_price}
+        
+        result = await user_collection.update_one(
+            {"username": current_user["username"]},
+            update_operations
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=500, detail="Failed to purchase book")
+        
+        # Get updated user info
+        updated_user = await user_collection.find_one({"username": current_user["username"]})
+        
+        return {
+            "success": True,
+            "message": f"Successfully {'added' if book_price == 0 else 'purchased'} book: {book.get('title')}",
+            "purchase_details": {
+                "book_id": book_purchase.book_id,
+                "book_title": book.get("title"),
+                "price_paid": book_price,
+                "remaining_points": updated_user.get("points", 0),
+                "purchase_date": library_entry["purchase_date"]
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/me/library/check/{book_id}")
+async def check_book_ownership(
+    book_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Check if user owns a specific book"""
+    try:
+        # Validate book ID
+        if not ObjectId.is_valid(book_id):
+            raise HTTPException(status_code=400, detail="Invalid book ID format")
+        
+        # Get user
+        user = await user_collection.find_one({"username": current_user["username"]})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Check if book exists in user's library
+        user_library = user.get("library", [])
+        owned = False
+        purchase_date = None
+        
+        for book_entry in user_library:
+            if str(book_entry.get("book_id")) == book_id:
+                owned = True
+                purchase_date = book_entry.get("purchase_date")
+                break
+        
+        return {
+            "owned": owned,
+            "purchase_date": purchase_date
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/me/library", response_model=UserLibraryResponse)
+async def get_user_library(
+    current_user: dict = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """Get user's library (purchased books)"""
+    try:
+        user = await user_collection.find_one({"username": current_user["username"]})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_library = user.get("library", [])
+        
+        # Apply pagination
+        total_books = len(user_library)
+        paginated_library = user_library[skip:skip + limit]
+        
+        # Calculate total spent
+        total_spent = sum(book.get("price_paid", 0) for book in user_library)
+        
+        # Convert to response format
+        books = []
+        for book_entry in paginated_library:
+            books.append(UserLibraryBook(
+                book_id=book_entry.get("book_id", ""),
+                title=book_entry.get("title", ""),
+                author=book_entry.get("author", ""),
+                price_paid=book_entry.get("price_paid", 0),
+                purchase_date=book_entry.get("purchase_date", datetime.utcnow()),
+                has_pdf=book_entry.get("has_pdf", False),
+                has_cover=book_entry.get("has_cover", False)
+            ))
+        
+        return UserLibraryResponse(
+            books=books,
+            total_books=total_books,
+            total_spent=total_spent
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.delete("/me/library/{book_id}")
+async def remove_book_from_library(
+    book_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove a book from user's library"""
+    try:
+        # Validate book ID
+        if not ObjectId.is_valid(book_id):
+            raise HTTPException(status_code=400, detail="Invalid book ID format")
+        
+        # Remove book from user's library
+        result = await user_collection.update_one(
+            {"username": current_user["username"]},
+            {"$pull": {"library": {"book_id": book_id}}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Book not found in library")
+        
+        return {"message": "Book removed from library successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/me/stats")
+async def get_user_stats(current_user: dict = Depends(get_current_user)):
+    """Get user statistics"""
+    try:
+        user = await user_collection.find_one({"username": current_user["username"]})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_library = user.get("library", [])
+        payment_history = user.get("payment_history", [])
+        
+        # Calculate stats
+        total_books = len(user_library)
+        total_spent = sum(book.get("price_paid", 0) for book in user_library)
+        total_payments = len(payment_history)
+        total_points_purchased = sum(payment.get("points_added", 0) for payment in payment_history)
+        
+        return {
+            "total_books_owned": total_books,
+            "total_points_spent": total_spent,
+            "total_payments": total_payments,
+            "total_points_purchased": total_points_purchased,
+            "current_points": user.get("points", 0),
+            "account_created": user.get("created_at", datetime.utcnow()),
+            "last_purchase": user_library[-1].get("purchase_date") if user_library else None,
+            "favorite_categories": []  # You can implement category analysis later
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

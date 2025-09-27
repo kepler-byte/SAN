@@ -1,6 +1,6 @@
 <script>
     import { onMount } from 'svelte';
-    import { uploadBook, getBookDetail, getCurrentUser, getBookCategories } from '../lib/api.js';  // Adjust path to your API file
+    import { uploadBook, getBookDetail, getCurrentUser, getBookCategories } from '../lib/api.js';
 
     let isAdmin = true;
     let message = '';
@@ -8,22 +8,21 @@
         title: '',
         rating: 0,
         description: '',
-        category: 'อื่นๆ', // Default category
-        price: 0 // Price in points (0 = free)
-        // author will be auto-filled by the server with uploader's username
+        category: 'อื่นๆ',
+        price: 0
     };
     let coverFile = null;
+    let pdfFile = null;  // 🆕 NEW: PDF file
     let bookId = '';
     let fetchedBook = null;
     let error = '';
-    let categories = []; // Store available categories
+    let categories = [];
     let loadingCategories = false;
+    let uploading = false;  // 🆕 NEW: Upload loading state
 
     onMount(async () => {
-        // Load categories when component mounts
         await loadCategories();
         
-        // Uncomment this to check admin status
         try {
             const user = await getCurrentUser();
             isAdmin = user.role === 'admin';
@@ -37,13 +36,11 @@
         try {
             const response = await getBookCategories();
             categories = response.categories || [];
-            // If no categories loaded, set default categories
             if (categories.length === 0) {
                 categories = ['อื่นๆ', 'นิยาย', 'บทความ', 'การศึกษา', 'ธุรกิจ', 'เทคโนโลยี'];
             }
         } catch (err) {
             console.error('Failed to load categories:', err);
-            // Set default categories if API fails
             categories = ['อื่นๆ', 'นิยาย', 'บทความ', 'การศึกษา', 'ธุรกิจ', 'เทคโนโลยี'];
         } finally {
             loadingCategories = false;
@@ -53,17 +50,37 @@
     async function handleUpload() {
         error = '';
         message = '';
+        uploading = true;
+        
         try {
-            const response = await uploadBook(bookData, coverFile);
+            // 🆕 UPDATED: Pass PDF file to upload function
+            const response = await uploadBook(bookData, coverFile, pdfFile);
             message = `หนังสือถูกอัปโหลดสำเร็จ! ID: ${response.id}`;
+            
+            if (response.has_pdf) {
+                message += ' ✅ PDF อัปโหลดสำเร็จ';
+            } else if (pdfFile) {
+                message += ' ⚠️ PDF อัปโหลดไม่สำเร็จ';
+            }
+            
+            if (response.has_cover) {
+                message += ' ✅ รูปปกอัปโหลดสำเร็จ';
+            }
+            
             // Reset form
             bookData = { title: '', rating: 0, description: '', category: 'อื่นๆ', price: 0 };
             coverFile = null;
-            // Reset file input
-            const fileInput = document.getElementById('cover');
-            if (fileInput) fileInput.value = '';
+            pdfFile = null;
+            
+            // Reset file inputs
+            const coverInput = document.getElementById('cover');
+            const pdfInput = document.getElementById('pdf');
+            if (coverInput) coverInput.value = '';
+            if (pdfInput) pdfInput.value = '';
         } catch (err) {
             error = err.message;
+        } finally {
+            uploading = false;
         }
     }
 
@@ -79,13 +96,34 @@
         }
     }
 
-    function handleFileChange(event) {
+    function handleCoverFileChange(event) {
         coverFile = event.target.files[0];
+    }
+
+    // 🆕 NEW: PDF file change handler
+    function handlePdfFileChange(event) {
+        pdfFile = event.target.files[0];
+        
+        // Validate PDF file size (optional)
+        if (pdfFile && pdfFile.size > 50 * 1024 * 1024) { // 50MB limit
+            alert('ไฟล์ PDF ใหญ่เกินไป (สูงสุด 50MB)');
+            pdfFile = null;
+            event.target.value = '';
+        }
+    }
+
+    // 🆕 NEW: Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 </script>
 
 <div class="max-w-2xl mx-auto p-6 bg-white shadow-lg rounded-lg mt-8">
-    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Book API Test Page</h1>
+    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Book API Test Page (GridFS)</h1>
 
     {#if error}
         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -101,6 +139,14 @@
     {#if isAdmin}
         <section class="mb-8">
             <h2 class="text-2xl font-semibold mb-4 text-gray-700">อัปโหลดหนังสือ (เฉพาะแอดมิน)</h2>
+            
+            <!-- 🆕 NEW: GridFS Info -->
+            <div class="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                <p class="text-sm text-blue-700">
+                    <strong>GridFS Storage:</strong> ไฟล์จะถูกเก็บใน MongoDB GridFS แทนการเก็บในโฟลเดอร์
+                </p>
+            </div>
+            
             <form on:submit|preventDefault={handleUpload} class="space-y-4">
                 <div>
                     <label for="title" class="block text-sm font-medium text-gray-700">ชื่อหนังสือ *</label>
@@ -111,10 +157,10 @@
                         required 
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" 
                         placeholder="กรุณาใส่ชื่อหนังสือ"
+                        disabled={uploading}
                     />
                 </div>
 
-                <!-- ผู้เขียนจะถูกกำหนดเป็นชื่อผู้อัปโหลดโดยอัตโนมัติ -->
                 <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
                     <p class="text-sm text-blue-700">
                         <strong>หมายเหตุ:</strong> ผู้เขียนจะถูกกำหนดเป็นชื่อผู้ใช้ของคุณโดยอัตโนมัติ
@@ -133,13 +179,13 @@
                             bind:value={bookData.category} 
                             required
                             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            disabled={uploading}
                         >
                             {#each categories as category}
                                 <option value={category}>{category}</option>
                             {/each}
                         </select>
                     {/if}
-                    <p class="text-xs text-gray-500 mt-1">เลือกหมวดหมู่ที่เหมาะสมกับหนังสือ</p>
                 </div>
                 
                 <div>
@@ -154,6 +200,7 @@
                         required 
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" 
                         placeholder="เช่น 4.5"
+                        disabled={uploading}
                     />
                 </div>
 
@@ -168,6 +215,7 @@
                         required 
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" 
                         placeholder="0"
+                        disabled={uploading}
                     />
                     <div class="mt-1 flex items-center space-x-2">
                         <span class="text-xs text-gray-600">
@@ -195,6 +243,7 @@
                         rows="4"
                         class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" 
                         placeholder="เขียนคำอธิบายเกี่ยวกับหนังสือเล่มนี้..."
+                        disabled={uploading}
                     ></textarea>
                 </div>
                 
@@ -204,17 +253,48 @@
                         id="cover" 
                         type="file" 
                         accept="image/*" 
-                        on:change={handleFileChange} 
+                        on:change={handleCoverFileChange} 
                         class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                        disabled={uploading}
                     />
                     <p class="text-xs text-gray-500 mt-1">รองรับไฟล์รูปภาพเท่านั้น (JPG, PNG, GIF)</p>
+                    {#if coverFile}
+                        <p class="text-xs text-green-600 mt-1">✅ เลือกไฟล์: {coverFile.name} ({formatFileSize(coverFile.size)})</p>
+                    {/if}
+                </div>
+
+                <!-- 🆕 NEW: PDF File Upload -->
+                <div>
+                    <label for="pdf" class="block text-sm font-medium text-gray-700">ไฟล์ PDF (ไม่บังคับ)</label>
+                    <input 
+                        id="pdf" 
+                        type="file" 
+                        accept=".pdf" 
+                        on:change={handlePdfFileChange} 
+                        class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" 
+                        disabled={uploading}
+                    />
+                    <p class="text-xs text-gray-500 mt-1">รองรับไฟล์ PDF เท่านั้น (สูงสุด 50MB)</p>
+                    {#if pdfFile}
+                        <p class="text-xs text-green-600 mt-1">📄 เลือกไฟล์: {pdfFile.name} ({formatFileSize(pdfFile.size)})</p>
+                    {/if}
                 </div>
                 
                 <button 
                     type="submit" 
                     class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium transition-colors"
+                    class:opacity-50={uploading}
+                    class:cursor-not-allowed={uploading}
+                    disabled={uploading}
                 >
-                    อัปโหลดหนังสือ
+                    {#if uploading}
+                        <div class="flex items-center justify-center gap-2">
+                            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>กำลังอัปโหลด...</span>
+                        </div>
+                    {:else}
+                        อัปโหลดหนังสือ
+                    {/if}
                 </button>
             </form>
         </section>
@@ -268,18 +348,52 @@
                             {fetchedBook.category || 'ไม่ระบุ'}
                         </span>
                     </p>
+                    
+                    <!-- 🆕 NEW: GridFS File Status -->
+                    <div class="flex gap-4 mt-2">
+                        <p class="text-gray-700">
+                            <strong>PDF:</strong> 
+                            {#if fetchedBook.has_pdf}
+                                <span class="inline-block bg-green-100 text-green-800 text-sm px-2 py-1 rounded-full ml-1">
+                                    ✅ มี PDF
+                                </span>
+                            {:else}
+                                <span class="inline-block bg-red-100 text-red-800 text-sm px-2 py-1 rounded-full ml-1">
+                                    ❌ ไม่มี PDF
+                                </span>
+                            {/if}
+                        </p>
+                        <p class="text-gray-700">
+                            <strong>รูปปก:</strong> 
+                            {#if fetchedBook.has_cover}
+                                <span class="inline-block bg-green-100 text-green-800 text-sm px-2 py-1 rounded-full ml-1">
+                                    ✅ มีรูปปก
+                                </span>
+                            {:else}
+                                <span class="inline-block bg-red-100 text-red-800 text-sm px-2 py-1 rounded-full ml-1">
+                                    ❌ ไม่มีรูปปก
+                                </span>
+                            {/if}
+                        </p>
+                    </div>
+                    
+                    {#if fetchedBook.file_size}
+                        <p class="text-gray-700"><strong>ขนาดไฟล์ PDF:</strong> {formatFileSize(fetchedBook.file_size)}</p>
+                    {/if}
+                    
                     <p class="text-gray-700"><strong>คำอธิบาย:</strong></p>
                     <p class="text-gray-600 bg-white p-3 rounded border italic">{fetchedBook.description}</p>
                 </div>
                 
-                {#if fetchedBook.cover}
+                <!-- 🆕 NEW: GridFS Cover Display -->
+                {#if fetchedBook.has_cover}
                     <div class="mb-4">
-                        <p class="text-gray-700 font-medium mb-2">รูปปกหนังสือ:</p>
+                        <p class="text-gray-700 font-medium mb-2">รูปปกหนังสือ (จาก GridFS):</p>
                         <img 
-                            src="{fetchedBook.cover}" 
+                            src="/api/books/{fetchedBook.id}/cover" 
                             alt="Book Cover" 
                             class="max-w-xs rounded-lg shadow-md border"
-                            on:error={() => console.log('Failed to load cover image')}
+                            on:error={() => console.log('Failed to load cover image from GridFS')}
                         />
                     </div>
                 {/if}
