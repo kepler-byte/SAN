@@ -5,6 +5,33 @@
   import { getUserSettings, updateSetting } from "../lib/api.js";
   import toast from 'svelte-french-toast';
 
+  // 👉 state สำหรับ modal โปรไฟล์
+  let showProfileModal = false;
+  let showCancelConfirm = false;
+
+  // mock data
+  let profile = {
+    avatar: "https://i.pravatar.cc/150?img=12",
+    name: "John Doe",
+    username: "johndoe",
+    email: "johndoe@gmail.com"
+  };
+
+  function saveProfile() {
+    console.log("Profile saved:", profile);
+    showProfileModal = false;
+  }
+
+  function cancelProfile() {
+    // โชว์ popup ยืนยันก่อนปิด
+    showCancelConfirm = true;
+  }
+
+  function confirmCancel() {
+    showCancelConfirm = false;
+    showProfileModal = false;
+  }
+  
   function logout() {
     clearAuth();
     location.reload();
@@ -242,6 +269,116 @@
           <div class="absolute left-0.5 top-0.5 size-5 bg-white rounded-full transition-transform duration-200 peer-checked:translate-x-5"></div>
         </label>
       </div>
+
+
+      <!-- Profile Management -->
+      <div class="flex items-center justify-between px-6 py-5">
+        <div class="flex-1">
+          <h3 class="text-base font-bold text-gray-900 dark:text-gray-100">
+            จัดการโปรไฟล์
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">แก้ไขข้อมูลโปรไฟล์ของคุณ</p>
+        </div>
+        <button
+          class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+          on:click={() => showProfileModal = true}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+          ไปที่โปรไฟล์
+        </button>
+      </div>
+
+
+      <!-- Modal โปรไฟล์ -->
+      {#if showProfileModal}
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 w-full max-w-2xl mx-4 relative">
+            
+            <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-gray-100">โปรไฟล์ของฉัน</h2>
+            
+            <!-- Profile mock data -->
+            <div class="flex items-center gap-6">
+              <img src={profile.avatar} alt="avatar" class="w-20 h-20 rounded-full object-cover" />
+              <div class="space-y-2">
+                <div>
+                  <label class="block text-sm text-gray-500">ชื่อ</label>
+                  <input
+                    type="text"
+                    bind:value={profile.name}
+                    class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-50 dark:bg-gray-700 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm text-gray-500">Username</label>
+                  <input
+                    type="text"
+                    bind:value={profile.username}
+                    class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-50 dark:bg-gray-700 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm text-gray-500">Email</label>
+                  <input
+                    type="email"
+                    bind:value={profile.email}
+                    class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-50 dark:bg-gray-700 dark:text-gray-100"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="mt-8 flex justify-end gap-3">
+              <button 
+                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg"
+                on:click={cancelProfile}
+              >
+                ยกเลิก
+              </button>
+              <button 
+                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                on:click={saveProfile}
+              >
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Confirm Cancel Modal -->
+      {#if showCancelConfirm}
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
+              คุณแน่ใจหรือไม่?
+            </h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              ถ้าไม่บันทึก ข้อมูลที่แก้ไขจะไม่ถูกบันทึก
+            </p>
+
+            <div class="mt-6 flex justify-end gap-3">
+              <button 
+                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg"
+                on:click={() => showCancelConfirm = false}
+              >
+                กลับไปแก้ไข
+              </button>
+              <button 
+                class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                on:click={confirmCancel}
+              >
+                ไม่บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+
+
 
       <!-- Logout Button -->
        <div class="flex items-center justify-between px-6 py-5">
