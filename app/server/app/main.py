@@ -8,11 +8,23 @@ import logging
 # Import your routers
 from app.routers import auth
 from app.routers import users
-from app.routers import book
+from app.routers import book  # This will now use GridFS
+from app.database import test_connection, get_database_info, get_storage_stats
 
-app = FastAPI(title="FastAPI JWT Auth", version="1.0.0")
+# กำหนด logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# CORS middleware - แก้ไขให้ครอบคลุมมากขึ้น
+app = FastAPI(
+    title="Welcome to SAN Endpoint APi!", 
+    version="1.0.0",
+    description="Book management API with MongoDB GridFS for PDF and image storage"
+)
+
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -28,20 +40,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
-
-# Error handler สำหรับ 500 errors
-@app.exception_handler(500)
-async def internal_error_handler(request: Request, exc: Exception):
-    logger.error(f"Internal error: {str(exc)}")
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error", "error": str(exc)},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
 
 # Error handlers
 @app.exception_handler(500)
@@ -91,7 +89,136 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """Comprehensive health check including GridFS"""
+    db_status = await test_connection()
+    db_info = await get_database_info() if db_status else None
+    storage_stats = await get_storage_stats() if db_status else None
+    
+    return {
+        "status": "healthy" if db_status else "unhealthy",
+        "database": "connected" if db_status else "disconnected",
+        "mongodb_info": db_info,
+        "storage_stats": storage_stats,
+        "gridfs_enabled": True
+    }
+
+@app.get("/debug")
+async def debug_endpoint():
+    """Debug endpoint with detailed GridFS information"""
+    try:
+        db_connected = await test_connection()
+        db_info = await get_database_info()
+        storage_stats = await get_storage_stats()
+        
+        return {
+            "mongodb_connection": "success" if db_connected else "failed",
+            "database_info": db_info,
+            "storage_stats": storage_stats,
+            "gridfs_status": "enabled",
+            "message": "Check logs for detailed information"
+        }
+    except Exception as e:
+        logger.error(f"Debug endpoint error: {e}")
+        return {
+            "mongodb_connection": "failed",
+            "error": str(e),
+            "message": "Check logs for detailed error information"
+        }
+
+@app.get("/admin/storage")
+async def admin_storage_info():
+    """Admin endpoint for storage management"""
+    try:
+        from app.auth.jwt_handler import get_current_user
+        from fastapi import Depends
+        
+        # This would normally have authentication, but for testing:
+        storage_stats = await get_storage_stats()
+        db_info = await get_database_info()
+        
+        return {
+            "storage_statistics": storage_stats,
+            "database_info": db_info,
+            "recommendations": [
+                "Regularly clean up orphaned files",
+                "Monitor total storage usage",
+                "Consider file size limits for uploads"
+            ]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/admin/cleanup")
+async def admin_cleanup():
+    """Admin endpoint to clean up orphaned GridFS files"""
+    try:
+        from app.database import cleanup_orphaned_files
+        result = await cleanup_orphaned_files()
+        return {
+            "cleanup_result": result,
+            "message": "Cleanup completed successfully"
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+# Import database functions
+from app.database import ensure_indexes, close_connection
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    logger.info("🚀 Starting FastAPI application with GridFS support...")
+    
+    # Test database connection
+    db_connected = await test_connection()
+    
+    if not db_connected:
+        logger.warning("⚠️  WARNING: MongoDB connection failed during startup")
+        logger.warning("⚠️  Application will continue but database operations will fail")
+        logger.warning("⚠️  Check your MongoDB URI and network connectivity")
+    else:
+        logger.info("✅ MongoDB connected successfully")
+        
+        # Create necessary indexes
+        try:
+            await ensure_indexes()
+            logger.info("✅ Database indexes created")
+        except Exception as e:
+            logger.warning(f"⚠️  Index creation failed: {e}")
+        
+        # Log database info
+        try:
+            db_info = await get_database_info()
+            if db_info:
+                logger.info(f"📊 Database: {db_info['database_name']}")
+                logger.info(f"📊 Collections: {len(db_info['collections'])}")
+                logger.info(f"📊 GridFS collections: {len(db_info['gridfs_collections'])}")
+                
+            storage_stats = await get_storage_stats()
+            if storage_stats:
+                logger.info(f"💾 Total books: {storage_stats['total_books']}")
+                logger.info(f"💾 Total storage: {storage_stats['total_storage_mb']} MB")
+                
+        except Exception as e:
+            logger.warning(f"⚠️  Could not retrieve database info: {e}")
+
+# Shutdown event
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("🛑 Shutting down FastAPI application...")
+    await close_connection()
+
+# Additional middleware for file uploads
+@app.middleware("http")
+async def add_file_upload_headers(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Add headers for file upload support
+    if request.url.path.startswith("/books") and request.method == "POST":
+        response.headers["Accept-Ranges"] = "bytes"
+        response.headers["Access-Control-Expose-Headers"] = "Content-Range, Content-Length"
+    
+    return response
 
 if __name__ == "__main__":
     import uvicorn
