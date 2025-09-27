@@ -1,5 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import MONGO_URI
+import logging
 
 # Setup logging
 logger = logging.getLogger(__name__)
