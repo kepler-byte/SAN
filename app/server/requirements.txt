@@ -8,3 +8,5 @@ pydantic
 pydantic[email]
 pymongo
 httpx
+python-multipart
+argon2_cffi
