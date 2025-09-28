@@ -6,9 +6,7 @@
   // Import components
   import Login from "./Routes/Login.svelte";
   import Register from "./Routes/Register.svelte";
-  import Navbar from "./components/Navbar.svelte";
   
-
   // Import page components
   import Home from "./Routes/Home.svelte";
   import Wallet from "./Routes/Wallet.svelte";
@@ -17,6 +15,7 @@
   import BookTest from "./Routes/BookTest.svelte";
 
   import toast, { Toaster } from "svelte-french-toast";
+  import Navbar from "./components/Navbar.svelte";
 
   // State
   let appState = "auth"; // "auth" หรือ "dashboard"
