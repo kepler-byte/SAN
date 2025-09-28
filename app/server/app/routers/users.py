@@ -1,6 +1,6 @@
 import httpx
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from app.database import user_collection
 from app.database import book_collection
 from app.auth.jwt_handler import get_current_user
@@ -28,6 +28,9 @@ class UserLibraryResponse(BaseModel):
     total_books: int
     total_spent: int
 
+class PointsRequest(BaseModel):
+    points_to_add: int
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current user information including points"""
@@ -44,19 +47,36 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
         settings=user.get("settings", {})
     )
 
+# OPTIONS handlers for CORS
 @router.options("/me/points")
 async def options_points():
     return Response(status_code=200)
 
+@router.options("/me/settings")
+async def options_settings():
+    return Response(status_code=200)
+
+@router.options("/me/settings/{setting_key}")
+async def options_single_setting(setting_key: str):
+    return Response(status_code=200)
+
+@router.options("/me/payment/truemoney")
+async def options_truemoney_payment():
+    return Response(status_code=200)
+
+@router.options("/me/purchase/book")
+async def options_purchase_book():
+    return Response(status_code=200)
+
 @router.patch("/me/points")
 async def update_user_points(
-    points_to_add: int, 
+    request: PointsRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """Add points to current user"""
     try:
         # ตรวจสอบว่า points_to_add เป็น positive number
-        if points_to_add <= 0:
+        if request.points_to_add <= 0:
             raise HTTPException(
                 status_code=400, 
                 detail="Points to add must be greater than 0"
@@ -64,7 +84,7 @@ async def update_user_points(
         
         result = await user_collection.update_one(
             {"username": current_user["username"]},
-            {"$inc": {"points": points_to_add}}
+            {"$inc": {"points": request.points_to_add}}
         )
         
         if result.modified_count == 0:
@@ -74,7 +94,7 @@ async def update_user_points(
         user = await user_collection.find_one({"username": current_user["username"]})
         return {
             "points": user.get("points", 0), 
-            "message": f"Added {points_to_add} points successfully"
+            "message": f"Added {request.points_to_add} points successfully"
         }
         
     except HTTPException:
