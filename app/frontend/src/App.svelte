@@ -13,8 +13,10 @@
   import Settings from "./Routes/Settings.svelte";
   import Bookpreview from "./Routes/Bookpreview.svelte";
   import BookTest from "./Routes/BookTest.svelte";
+  import Bookstore from "./Routes/Bookstore.svelte";
+  import CreatorDashboard from "./Routes/CreatorDashboard.svelte";
 
-  import toast, { Toaster } from "svelte-french-toast";
+  import { Toaster, toast } from 'svelte-sonner';
   import Navbar from "./components/Navbar.svelte";
 
   // State
@@ -30,7 +32,9 @@
     wallet: Wallet,
     settings: Settings,
     booktest: BookTest,
+    bookstore: Bookstore,
     bookpreview: Bookpreview,
+    creatordashboard: CreatorDashboard,
   };
 
   $: currentComponent = routes[currentPage] || Home;
@@ -114,7 +118,7 @@
   }
 </script>
 
-<Toaster position="top-right" />
+<Toaster position="top-center" />
 
 {#if !token}
   <!-- Authentication Pages -->

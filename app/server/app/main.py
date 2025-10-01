@@ -8,7 +8,9 @@ import logging
 # Import your routers
 from app.routers import auth
 from app.routers import users
-from app.routers import book  # This will now use GridFS
+from app.routers import book 
+from app.routers import reviews
+from app.routers import creator
 from app.database import test_connection, get_database_info, get_storage_stats
 
 # กำหนด logging
@@ -34,10 +36,10 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:8080",
-        "*"  # ใน production ควรระบุ domain เฉพาะ
+        "*"
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],  # เพิ่ม PATCH
     allow_headers=["*"],
 )
 
@@ -49,10 +51,10 @@ async def internal_error_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error", "error": str(exc)},
         headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",  # เพิ่ม PATCH
+    "Access-Control-Allow-Headers": "*",
+}
     )
 
 @app.exception_handler(413)
@@ -70,7 +72,9 @@ async def file_too_large_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(auth.router)
 app.include_router(users.router) 
-app.include_router(book.router)  # Now uses GridFS
+app.include_router(book.router)
+app.include_router(reviews.router)
+app.include_router(creator.router)
 
 @app.get("/")
 async def root():

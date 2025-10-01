@@ -1,4 +1,4 @@
-const API_BASE = 'https://san-yrrn.onrender.com';
+const API_BASE = 'http://localhost:8000';
 
 export async function register(userData) {
     const response = await fetch(`${API_BASE}/auth/register`, {
@@ -91,18 +91,17 @@ export async function addPoints(pointsToAdd) {
     }
 
     try {
-        const response = await fetch(`${API_BASE}/users/me/points?points_to_add=${pointsToAdd}`, {
+        const response = await fetch(`${API_BASE}/users/me/points`, {
             method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
-            // เพิ่ม mode สำหรับ CORS
             mode: 'cors',
+            body: JSON.stringify({ points_to_add: pointsToAdd })  // ส่งเป็น JSON body
         });
 
-        // Check if response is ok
         if (!response.ok) {
             let errorMessage = `HTTP ${response.status}`;
             
@@ -120,7 +119,6 @@ export async function addPoints(pointsToAdd) {
         return result;
         
     } catch (error) {
-        // Handle different types of errors
         if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
             throw new Error('Cannot connect to server. Please check if the backend is running.');
         } else if (error.name === 'SyntaxError') {
@@ -667,6 +665,239 @@ export async function removeBookFromLibrary(bookId) {
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.detail || 'Failed to remove book');
+    }
+    
+    return response.json();
+}
+
+export async function createReview(bookId, rating, reviewText) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/${bookId}/reviews`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            rating: rating,
+            review_text: reviewText
+        })
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to create review');
+    }
+    
+    return response.json();
+}
+
+// Get all reviews for a book
+export async function getBookReviews(bookId, skip = 0, limit = 20) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/${bookId}/reviews?skip=${skip}&limit=${limit}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get reviews');
+    }
+    
+    return response.json();
+}
+
+// Update user's review
+export async function updateReview(bookId, reviewId, rating = null, reviewText = null) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const body = {};
+    if (rating !== null) body.rating = rating;
+    if (reviewText !== null) body.review_text = reviewText;
+
+    const response = await fetch(`${API_BASE}/books/${bookId}/reviews/${reviewId}`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body)
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update review');
+    }
+    
+    return response.json();
+}
+
+// Delete user's review
+export async function deleteReview(bookId, reviewId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/${bookId}/reviews/${reviewId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to delete review');
+    }
+    
+    return response.json();
+}
+
+// Get all reviews by current user
+export async function getUserReviews(skip = 0, limit = 20) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/books/user/reviews?skip=${skip}&limit=${limit}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get user reviews');
+    }
+    
+    return response.json();
+}
+
+// Get creator dashboard statistics
+export async function getCreatorStats() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/creator/stats`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get creator stats');
+    }
+    
+    return response.json();
+}
+
+// Get sales history (for chart)
+export async function getSalesHistory(months = 6) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/creator/sales/history?months=${months}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get sales history');
+    }
+    
+    return response.json();
+}
+
+// Get creator's books
+export async function getCreatorBooks(skip = 0, limit = 20) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/creator/books?skip=${skip}&limit=${limit}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to get creator books');
+    }
+    
+    return response.json();
+}
+
+// Follow a creator
+export async function followCreator(creatorUsername) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/creator/follow/${creatorUsername}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to follow creator');
+    }
+    
+    return response.json();
+}
+
+// Unfollow a creator
+export async function unfollowCreator(creatorUsername) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error('No token found');
+    }
+
+    const response = await fetch(`${API_BASE}/creator/unfollow/${creatorUsername}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to unfollow creator');
     }
     
     return response.json();

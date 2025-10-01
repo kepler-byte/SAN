@@ -16,8 +16,10 @@
   "dependencies": {
     "@lucide/svelte": "^0.544.0",
     "@tailwindcss/vite": "^4.1.13",
-    "svelte-french-toast": "^1.2.0",
+    "chart.js": "^4.5.0",
+    "dotenv": "^17.2.2",
     "svelte-routing": "^2.13.0",
+    "svelte-sonner": "^1.0.5",
     "svelte-spa-router": "^4.0.1",
     "tailwind-scrollbar-hide": "^4.0.0",
     "tailwindcss": "^4.1.13"

@@ -49,7 +49,7 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
 
 # OPTIONS handlers for CORS
 @router.options("/me/points")
-async def options_points():
+async def options_points(points_to_add: int = Query(None)):
     return Response(status_code=200)
 
 @router.options("/me/settings")

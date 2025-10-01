@@ -11,16 +11,9 @@ export default defineConfig({
       rewrites: [
         { from: /.*/, to: '/index.html' }
       ]
-    }
+    },
+    allowedHosts: [
+      '',
+    ]
   },
-
-  build: {
-       rollupOptions: {
-         onwarn: (warning, warn) => {
-           // Skip certain warnings
-           if (warning.code === 'UNRESOLVED_IMPORT') return;
-           warn(warning);
-         }
-       }
-     }
 })

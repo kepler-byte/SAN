@@ -9,7 +9,7 @@
 
   const items = [
     { icon: 'home', label: 'หน้าหลัก', page: 'home' },
-    { icon: 'book', label: 'คลังหนังสือ', page: 'document' },
+    { icon: 'book', label: 'คลังหนังสือ', page: 'bookstore' },
     { icon: 'account_balance_wallet', label: 'เติมเงิน', page: 'wallet' },
     { icon: 'settings', label: 'การตั้งค่า', page: 'settings' }
   ];

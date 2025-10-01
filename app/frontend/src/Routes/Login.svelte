@@ -3,7 +3,7 @@
   import { login } from "../lib/api";
   import { setAuthToken } from "../lib/auth";
   import SAN_logo from "../assets/SAN_logo.svg";
-  import toast, { Toaster } from 'svelte-french-toast';
+  import { Toaster, toast } from 'svelte-sonner'
 
   let username = "";
   let password = "";

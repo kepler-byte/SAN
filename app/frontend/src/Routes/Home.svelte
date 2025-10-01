@@ -1,5 +1,5 @@
 <script>
-  import { House, Search, CircleAlert, Bookmark, Filter } from "@lucide/svelte";
+  import { House, Search, CircleAlert, Bookmark, Filter, Loader } from "@lucide/svelte";
   import { createEventDispatcher, onMount, onDestroy } from "svelte";
   import { getAllBooks, getCurrentUser, getBooksByCategory, getBookCover } from "../lib/api.js";
   import SANPoint from "../assets/SAN_Point_White.svg";
@@ -259,12 +259,12 @@
 
 <div class="min-h-screen bg-white px-6 py-5 space-y-6">
   {#if loading}
-    <div class="flex justify-center items-center h-64">
-      <div
-        class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400"
-      ></div>
-      <span class="ml-2 text-gray-600">กำลังโหลดข้อมูล...</span>
-    </div>
+    <div class="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center">
+        <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+          <Loader class="w-5 h-5 animate-spin" />
+          กำลังโหลดการตั้งค่า...
+        </div>
+      </div>
   {:else if error}
     <div class="bg-red-50 border border-red-200 rounded-lg p-4">
       <div class="flex">
@@ -392,7 +392,7 @@
                 <!-- Show loading spinner while cover is loading -->
                 {#if book.has_cover && !coverObjectUrls.has(book.id)}
                   <div class="w-full aspect-[3/4.2] bg-gray-200 rounded-md flex items-center justify-center">
-                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-400"></div>
+                    <Loader class="w-5 h-5 animate-spin text-orange-400" />
                   </div>
                 {:else}
                   <img
@@ -412,12 +412,13 @@
                   class:bg-orange-400={book.price > 0}
                   class:text-white={true}
                 >
+                <span>{formatPrice(book.price)}</span>
                   <img
                     src={SANPoint}
                     alt="Points"
                     class="w-3 h-3 object-contain"
                   />
-                  <span>{formatPrice(book.price)}</span>
+                  
                 </div>
               </div>
               <p
