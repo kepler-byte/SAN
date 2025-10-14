@@ -1,15 +1,15 @@
-import httpx
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
-from app.database import book_collection
-from app.auth.jwt_handler import get_current_user
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-from bson import ObjectId
-import os
-import uuid
+import httpx #ขออนุญาตใช้ httpx แทน requests เพราะมัน async
+from datetime import datetime  # ใช้สำหรับเก็บเวลาที่สร้างหนังสือ
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query # เพิ่ม UploadFile, File, Form
+from app.database import book_collection #ตั้งค่า collection สำหรับเก็บหนังสือ ให้ตรงกับ database.py
+from app.auth.jwt_handler import get_current_user # ใช้สำหรับดึงข้อมูลผู้ใช้จาก JWT token
+from pydantic import BaseModel # ใช้สำหรับสร้าง schema
+from typing import Optional, Dict, Any, List # ใช้สำหรับ type hinting
+from bson import ObjectId # ใช้สำหรับจัดการ ObjectId ของ MongoDB
+import os #นำเข้า os สำหรับจัดการไฟล์ os คือโมดูลมาตรฐานของ Python ที่ให้ฟังก์ชันต่างๆ ในการโต้ตอบกับระบบปฏิบัติการ
+import uuid # ใช้สำหรับสร้างชื่อไฟล์ที่ไม่ซ้ำกัน
 
-router = APIRouter(prefix="/books", tags=["Books"])
+router = APIRouter(prefix="/books", tags=["Books"]) #ตั้งค่า prefix และ tags สำหรับ router
 
 # Define available categories
 AVAILABLE_CATEGORIES = [
