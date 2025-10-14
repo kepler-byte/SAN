@@ -1,19 +1,19 @@
 import gridfs
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
-from fastapi.responses import StreamingResponse
-from app.database import database
+from datetime import datetime #สำหรับจัดการวันที่และเวลา
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query #สำหรับสร้าง API routes และจัดการการอัปโหลดไฟล์
+from fastapi.responses import StreamingResponse #สำหรับส่งไฟล์เป็นสตรีมไปยังลูกค้า
+from app.database import database 
 from app.auth.jwt_handler import get_current_user
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-from bson import ObjectId
-import io
-import uuid
+from pydantic import BaseModel #สำหรับการสร้างโมเดลข้อมูลที่ใช้ในการตรวจสอบและจัดการข้อมูล
+from typing import Optional, Dict, Any, List #สำหรับการระบุชนิดข้อมูล
+from bson import ObjectId #สำหรับจัดการกับ ObjectId ของ MongoDB ซึ่ง ObjectId เป็นชนิดข้อมูลเฉพาะที่ใช้เป็นตัวระบุเอกลักษณ์ของเอกสารใน MongoDB
+import io #สำหรับการจัดการกับ I/O operations เช่น การอ่านและเขียนไฟล์ในหน่วยความจำ
+import uuid #uuid คือโมดูลใน Python ที่ใช้สำหรับสร้างตัวระบุเอกลักษณ์แบบสุ่ม (UUID - Universally Unique Identifier) ซึ่งมีประโยชน์ในการสร้าง ID ที่ไม่ซ้ำกันสำหรับวัตถุต่าง ๆ เช่น ไฟล์หรือรายการในฐานข้อมูล
 
-router = APIRouter(prefix="/books", tags=["Books"])
+router = APIRouter(prefix="/books", tags=["Books"]) #สร้าง router สำหรับจัดการเส้นทางที่เกี่ยวข้องกับหนังสือ โดยมี prefix เป็น /books และแท็กเป็น "Books"
 
-# Initialize GridFS buckets
+# Initialize GridFS buckets เพื่อจัดการไฟล์ PDF และภาพปก
 pdf_bucket = AsyncIOMotorGridFSBucket(database, bucket_name="pdfs")
 cover_bucket = AsyncIOMotorGridFSBucket(database, bucket_name="covers")
 
@@ -26,7 +26,7 @@ AVAILABLE_CATEGORIES = [
     "สุขภาพ", "การเงิน", "จิตวิทยา", "อื่นๆ"
 ]
 
-class BookResponse(BaseModel):
+class BookResponse(BaseModel): #สำหรับส่งข้อมูลหนังสือกลับไปยังลูกค้า
     id: str
     title: str
     author: str
@@ -41,7 +41,7 @@ class BookResponse(BaseModel):
     has_pdf: bool = False
     has_cover: bool = False
 
-class CategoryResponse(BaseModel):
+class CategoryResponse(BaseModel): #สำหรับส่งรายการหมวดหมู่หนังสือ
     categories: List[str]
 
 async def upload_file_to_gridfs(file: UploadFile, bucket: AsyncIOMotorGridFSBucket, file_type: str) -> tuple[ObjectId, int]:
@@ -116,12 +116,12 @@ async def is_admin(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
 
-@router.get("/categories", response_model=CategoryResponse)
+@router.get("/categories", response_model=CategoryResponse) #เส้นทางสำหรับดึงรายการหมวดหมู่หนังสือ
 async def get_categories(current_user: dict = Depends(get_current_user)):
     """Get all available book categories."""
     return CategoryResponse(categories=AVAILABLE_CATEGORIES)
 
-@router.post("/", response_model=BookResponse)
+@router.post("/", response_model=BookResponse) #เส้นทางสำหรับอัปโหลดหนังสือใหม่พร้อมไฟล์ปกและ PDF
 async def upload_book(
     title: str = Form(...),
     rating: float = Form(...),
@@ -135,13 +135,13 @@ async def upload_book(
     """Upload/create a new book with cover and PDF support using GridFS."""
     
     # Validate category
-    if category not in AVAILABLE_CATEGORIES:
+    if category not in AVAILABLE_CATEGORIES: #ตรวจสอบว่าหมวดหมู่ที่ส่งมาถูกต้องหรือไม่
         raise HTTPException(
             status_code=400, 
             detail=f"Invalid category. Available categories: {', '.join(AVAILABLE_CATEGORIES)}"
         )
     
-    # Create book metadata
+    # Create book metadata 
     book_dict = {
         "title": title,
         "author": current_user["username"],
@@ -151,9 +151,9 @@ async def upload_book(
         "price": price,
         "created_at": datetime.utcnow(),
         "uploader": current_user["username"]
-    }
+    } #ข้อมูลเมตาของหนังสือ เช่น ชื่อเรื่อง ผู้แต่ง คะแนน คำอธิบาย หมวดหมู่ ราคา วันที่สร้าง และผู้ที่อัปโหลด
     
-    # Handle cover upload
+    # Handle cover upload โคดส่วนนี้จะจัดการกับการอัปโหลดภาพปกหนังสือ
     cover_id = None
     if cover_file and cover_file.filename:
         # Validate cover file type
@@ -172,7 +172,7 @@ async def upload_book(
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to upload cover: {str(e)}")
     
-    # Handle PDF upload
+    # Handle PDF upload โค้ดส่วนนี้จะจัดการกับการอัปโหลดไฟล์ PDF ของหนังสือ
     pdf_id = None
     file_size = None
     if pdf_file and pdf_file.filename:
@@ -211,10 +211,10 @@ async def upload_book(
             has_cover=bool(created_book.get("cover_id"))
         )
         
-    except Exception as e:
+    except Exception as e: #ถ้ามีข้อผิดพลาดเกิดขึ้นระหว่างการแทรกข้อมูลหนังสือลงในฐานข้อมูล จะส่ง HTTPException พร้อมรายละเอียดข้อผิดพลาด
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.get("/{book_id}/cover")
+@router.get("/{book_id}/cover") #เส้นทางสำหรับดึงภาพปกหนังสือจาก GridFS
 async def get_book_cover(
     book_id: str,
     current_user: dict = Depends(get_current_user)
@@ -247,7 +247,7 @@ async def get_book_cover(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
-@router.get("/{book_id}/read")
+@router.get("/{book_id}/read") #เส้นทางสำหรับอ่านหนังสือ (สตรีม PDF) จาก GridFS
 async def read_book(
     book_id: str,
     current_user: dict = Depends(get_current_user)
@@ -288,7 +288,7 @@ async def read_book(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
-@router.get("/{book_id}/download")
+@router.get("/{book_id}/download") #เส้นทางสำหรับดาวน์โหลดไฟล์ PDF ของหนังสือจาก GridFS
 async def download_book(
     book_id: str,
     current_user: dict = Depends(get_current_user)
@@ -325,7 +325,7 @@ async def download_book(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
-@router.get("/{book_id}", response_model=BookResponse)
+@router.get("/{book_id}", response_model=BookResponse) #เส้นทางสำหรับดึงรายละเอียดของหนังสือโดยใช้ ID ของหนังสือ
 async def get_book_detail(
     book_id: str,
     current_user: dict = Depends(get_current_user)
@@ -360,7 +360,7 @@ async def get_book_detail(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
-@router.get("/", response_model=list[BookResponse])
+@router.get("/", response_model=list[BookResponse]) #เส้นทางสำหรับดึงรายการหนังสือทั้งหมดพร้อมการแบ่งหน้า การกรอง และการค้นหา
 async def get_all_books(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
@@ -421,7 +421,7 @@ async def get_all_books(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
-@router.delete("/{book_id}")
+@router.delete("/{book_id}") #เส้นทางสำหรับลบหนังสือและไฟล์ที่เกี่ยวข้องออกจาก GridFS
 async def delete_book(
     book_id: str,
     current_user: dict = Depends(is_admin)
@@ -456,7 +456,7 @@ async def delete_book(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
-@router.get("/stats/storage")
+@router.get("/stats/storage") #เส้นทางสำหรับดึงสถิติการจัดเก็บไฟล์ใน GridFS
 async def get_storage_stats(current_user: dict = Depends(is_admin)):
     """Get storage statistics for GridFS."""
     try:
