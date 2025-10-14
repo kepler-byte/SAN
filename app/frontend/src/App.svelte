@@ -4,19 +4,18 @@
   import { fade, fly } from "svelte/transition";
 
   // Import components
-  import Login from "./Routes/Login.svelte";
-  import Register from "./Routes/Register.svelte";
-  import Navbar from "./components/Navbar.svelte";
-  
+  import Login from "./routes/Login.svelte";
+  import Register from "./routes/Register.svelte";
+  import Navbar from "./components/Navbar.svelte"; 
 
   // Import page components
-  import Home from "./Routes/Home.svelte";
-  import Wallet from "./Routes/Wallet.svelte";
-  import Settings from "./Routes/Settings.svelte";
-  import Bookpreview from "./Routes/Bookpreview.svelte";
-  import BookTest from "./Routes/BookTest.svelte";
+  import Home from "./routes/Home.svelte";
+  import Wallet from "./routes/Wallet.svelte";
+  import Settings from "./routes/Settings.svelte";
+  import Bookpreview from "./routes/Bookpreview.svelte";
+  import BookTest from "./routes/BookTest.svelte";
 
-  import toast, { Toaster } from "svelte-french-toast";
+    import { Toaster, toast } from 'svelte-sonner';
 
   // State
   let appState = "auth"; // "auth" หรือ "dashboard"

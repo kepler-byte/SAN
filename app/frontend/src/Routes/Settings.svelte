@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { clearAuth } from "../lib/auth";
   import { getUserSettings, updateSetting } from "../lib/api.js";
-  import toast from 'svelte-french-toast';
+  import { Toaster, toast } from 'svelte-sonner';
 
   // 👉 state สำหรับ modal โปรไฟล์
   let showProfileModal = false;

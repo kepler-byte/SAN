@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'https://san-yrrn.onrender.com';
 
 export async function register(userData) {
     const response = await fetch(`${API_BASE}/auth/register`, {

@@ -1,7 +1,7 @@
 <script>
   import { createEventDispatcher } from "svelte";
-  import toast, { Toaster } from 'svelte-french-toast';
-    import SAN_logo from "../assets/SAN_logo.svg";
+  import { Toaster, toast } from 'svelte-sonner';
+  import SAN_logo from "../assets/SAN_logo.svg";
   import { register } from "../lib/api";
 
   let username = "";

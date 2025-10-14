@@ -3,7 +3,7 @@
   import { onMount } from "svelte";
   import { getCurrentUser, addPoints, processTrueMoneyPayment, getPaymentHistory } from "../lib/api.js";
   import { authToken, currentUser } from "../lib/auth.js";
-  import toast, { Toaster } from 'svelte-french-toast';
+  import { Toaster, toast } from 'svelte-sonner';
   import SANPoint from "../assets/SANPoint.svg";
 
   let userPoints = 0;
