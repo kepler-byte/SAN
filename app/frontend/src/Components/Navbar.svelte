@@ -1,12 +1,14 @@
 <script>
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount, createEventDispatcher } from 'svelte'; // ใช้ onMount เพื่อตรวจสอบขนาดหน้าจอเมื่อ component ถูก mount
   export let currentPage = 'home'; // รับค่าจาก parent component
   
-  let isMobile = false;
-  let hoveredItem = null;
-  
-  const dispatch = createEventDispatcher();
+  let isMobile = false;   // ตัวแปรเพื่อตรวจสอบว่าเป็นมือถือหรือไม่
+  let hoveredItem = null;   // ตัวแปรเก็บรายการที่ถูก hover
+  let isSidebarExpanded = false; // ตัวแปรเพื่อตรวจสอบว่า sidebar ขยายหรือไม่
 
+  const dispatch = createEventDispatcher(); // สร้าง event dispatcher เพื่อส่ง event ไปยัง parent component
+
+  //รายการเมนู
   const items = [
     { icon: 'home', label: 'หน้าหลัก', page: 'home' },
     { icon: 'book', label: 'คลังหนังสือ', page: 'document' },
@@ -14,7 +16,7 @@
     { icon: 'settings', label: 'การตั้งค่า', page: 'settings' }
   ];
 
-  function checkScreenSize() {
+  function checkScreenSize() {  // ฟังก์ชันตรวจสอบขนาดหน้าจอ
     if (window.innerWidth < 768) {
       isMobile = true;
     } else {
@@ -22,25 +24,25 @@
     }
   }
 
-  function handleMouseEnter(item) {
-    if (!isMobile) {
-      hoveredItem = item;
+  function handleMouseEnter(item) { // ฟังก์ชันจัดการเมื่อเมาส์เข้า
+    if (!isMobile)  { // ตรวจสอบว่าไม่ใช่มือถือ
+      hoveredItem = item; // เก็บรายการที่ถูก hover(วางเมาส์)
     }
   }
 
-  function handleMouseLeave() {
+  function handleMouseLeave() { // ฟังก์ชันจัดการเมื่อเมาส์ออก
     if (!isMobile) {
       hoveredItem = null;
     }
   }
 
-  function navigateTo(page) {
+  function navigateTo(page) { // ฟังก์ชันจัดการการนำทาง
     if (currentPage !== page) {
       dispatch('navigate', page);
     }
   }
 
-  onMount(() => {
+  onMount(() => {   // ตรวจสอบขนาดหน้าจอเมื่อ component ถูก mount
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
@@ -66,8 +68,12 @@
     {/each}
   </nav>
 {:else}
+
   <!-- Desktop Sidebar -->
-  <aside class="hidden md:flex md:flex-col md:w-20 hover:md:w-48 md:h-screen md:bg-white dark:md:bg-gray-800 md:border-r md:border-gray-200 dark:md:border-gray-700 md:fixed md:top-0 md:left-0 md:bottom-0 md:transition-all md:duration-300 md:ease-in-out md:z-10">
+  <aside class="hidden md:flex md:flex-col md:w-20 hover:md:w-48 md:h-screen md:bg-white dark:md:bg-gray-800 md:border-r md:border-gray-200 dark:md:border-gray-700 md:fixed md:top-0 md:left-0 md:bottom-0 md:transition-all md:duration-300 md:ease-in-out md:z-10"
+  on:mouseenter={() => (isSidebarExpanded = true)}
+  on:mouseleave={() => (isSidebarExpanded = false)}
+  >
     <div class="flex flex-col py-6 space-y-2 w-full">
       {#each items as item (item.label)}
         <button
@@ -84,7 +90,7 @@
             </span>
           </div>
           <!-- Text on hover -->
-          <span class="absolute left-20 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none {currentPage === item.page ? 'text-orange-500' : 'text-gray-500 dark:text-gray-400'} group-hover:text-orange-500">
+          <span class="absolute left-20 text-sm font-medium transition-opacity duration-200 whitespace-nowrap pointer-events-none {isSidebarExpanded ? 'opacity-100' : 'opacity-0'} {currentPage === item.page ? 'text-orange-500' : 'text-gray-500 dark:text-gray-400'} group-hover:text-orange-500">
             {item.label}
           </span>
         </button>
