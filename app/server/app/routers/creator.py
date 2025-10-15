@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.database import user_collection, book_collection
 from app.auth.jwt_handler import get_current_user
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Optional
 from bson import ObjectId
 
 router = APIRouter(prefix="/creator", tags=["Creator"])
@@ -248,3 +248,55 @@ async def unfollow_creator(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to unfollow creator: {str(e)}")
+    
+@router.get("/profile/{username}")
+async def get_user_profile(
+    username: str,
+    current_user: Optional[dict] = Depends(get_current_user)
+):
+    """Get public profile information by username (creator or normal user)"""
+    
+    user = await user_collection.find_one({"username": username})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # --- สรุปข้อมูลพื้นฐาน ---
+    followers_count = await user_collection.count_documents({"following": username})
+    following_count = len(user.get("following", []))
+
+    # --- นับจำนวนหนังสือถ้ามี ---
+    books = await book_collection.find({"author": username}).to_list(None)
+    total_books = len(books)
+    
+    # --- นับยอดขายถ้ามี (ถ้าเป็น creator เท่านั้น) ---
+    total_sales = 0
+    if books:
+        pipeline = [
+            {"$unwind": "$library"},
+            {"$match": {"library.book_id": {"$in": [str(book["_id"]) for book in books]}}},
+            {"$group": {"_id": None, "total_revenue": {"$sum": "$library.price_paid"}}}
+        ]
+        result = await user_collection.aggregate(pipeline).to_list(length=None)
+        if result:
+            total_sales = int(result[0].get("total_revenue", 0))
+    
+    # --- ตรวจสอบว่า current user follow อยู่มั้ย ---
+    is_following = False
+    if current_user:
+        me = await user_collection.find_one({"username": current_user["username"]})
+        if me:
+            is_following = username in me.get("following", [])
+
+    return {
+        "username": user["username"],
+        "profile_picture": user.get("profile_picture"),
+        "bio": user.get("bio", ""),
+        "followers_count": followers_count,
+        "following_count": following_count,
+        "total_books": total_books,
+        "total_sales": total_sales,
+        "joined_date": user.get("created_at"),
+        "role": user.get("role", "user"),
+        "is_following": is_following
+    }
