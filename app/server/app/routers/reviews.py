@@ -101,7 +101,7 @@ async def update_book_rating(book_id: str) -> None:
         )
 
 def format_review_response(review: dict, current_username: str) -> ReviewResponse:
-    """Format a review document into a ReviewResponse model"""
+   # จัดรูปแบบข้อมูลรีวิวจากฐานข้อมูลให้เป็นโมเดล ReviewResponse
     return ReviewResponse(
         review_id=review.get("review_id", ""),
         user_id=review.get("user_id", ""),
@@ -114,13 +114,13 @@ def format_review_response(review: dict, current_username: str) -> ReviewRespons
     )
 
 async def check_review_permission(book_id: str, username: str) -> bool:
-    """Check if user can review the book (owns it or it's free)"""
+ ตรวจสอบว่าผู้ใช้งานสามารถรีวิวหนังสือได้หรือไม่ (เป็นเจ้าของ หรือหนังสือฟรี)
     owns_book = await check_book_ownership(book_id, username)
     book_is_free = await is_book_free(book_id)
     return owns_book or book_is_free
 
 async def check_user_already_reviewed(book: dict, username: str) -> bool:
-    """Check if user has already reviewed the book"""
+    # ตรวจสอบว่าผู้ใช้ได้รีวิวหนังสือเล่มนี้ไปแล้วหรือไม่
     existing_reviews = book.get("reviews", [])
     for rev in existing_reviews:
         if rev.get("user_id") == username:
@@ -195,7 +195,7 @@ async def get_book_reviews(
     limit: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all reviews for a specific book"""
+    # ดึงข้อมูลรีวิวทั้งหมดของหนังสือเฉพาะเล่ม
     try:
         # Validate book exists
         book = await validate_book_id(book_id)
@@ -244,7 +244,7 @@ async def update_review(
     review_update: ReviewUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    """Update user's own review"""
+    # อัปเดตรีวิวของผู้ใช้งาน
     try:
         # Validate book exists
         book = await validate_book_id(book_id)
@@ -299,7 +299,7 @@ async def delete_review(
     review_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete user's own review"""
+    # ลบรีวิวของผู้ใช้งาน
     try:
         # Validate book exists
         book = await validate_book_id(book_id)
@@ -345,7 +345,7 @@ async def get_user_reviews(
     limit: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all reviews written by the current user"""
+    # ดึงข้อมูลรีวิวทั้งหมดที่เขียนโดยผู้ใช้งานคนปัจจุบัน
     try:
         # Find all books with reviews from this user
         books_with_reviews = await book_collection.find(
