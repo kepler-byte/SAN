@@ -43,9 +43,9 @@ class UserReviewsResponse(BaseModel):
     reviews: List[dict]
 
 # ============ HELPER FUNCTIONS ============
-
+# ฟังก์ชันและพารามิเตอร์
 async def validate_book_id(book_id: str) -> dict:
-    """Validate book ID and return book document"""
+   #ตรวจสอบความถูกต้องของ book_id และคืนค่าข้อมูลหนังสือจากฐานข้อมูล
     if not ObjectId.is_valid(book_id):
         raise HTTPException(status_code=400, detail="Invalid book ID format")
     
@@ -56,7 +56,7 @@ async def validate_book_id(book_id: str) -> dict:
     return book
 
 async def check_book_ownership(book_id: str, username: str) -> bool:
-    """Check if user owns the book"""
+   #ตรวจสอบว่าผู้ใช้งานเป็นเจ้าของหนังสือเล่มนั้นหรือไม่
     user = await user_collection.find_one({"username": username})
     if not user:
         return False
