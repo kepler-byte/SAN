@@ -1,29 +1,124 @@
 <script>
     import { onMount } from 'svelte';
-    import { uploadBook, getBookDetail, getCurrentUser, getBookCategories } from '../lib/api.js';  // Adjust path to your API file
-
+    
+    // API Configuration
+    const API_BASE = 'http://127.0.0.1:8000';
+    
+    // State variables
     let isAdmin = true;
     let message = '';
     let bookData = {
         title: '',
         rating: 0,
         description: '',
-        category: 'อื่นๆ', // Default category
-        price: 0 // Price in points (0 = free)
-        // author will be auto-filled by the server with uploader's username
+        category: 'อื่นๆ',
+        price: 0
     };
     let coverFile = null;
+    let pdfFile = null;
     let bookId = '';
     let fetchedBook = null;
     let error = '';
-    let categories = []; // Store available categories
+    let categories = [];
     let loadingCategories = false;
 
+    // API Functions
+    async function getCurrentUser() {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No token found');
+        
+        const response = await fetch(`${API_BASE}/users/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to get user info');
+        }
+        
+        return response.json();
+    }
+
+    async function getBookCategories() {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No token found');
+
+        const response = await fetch(`${API_BASE}/books/categories`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to get categories');
+        }
+        
+        return response.json();
+    }
+
+    async function uploadBook(bookData, coverFile = null, pdfFile = null) {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No token found');
+
+        const formData = new FormData();
+        formData.append('title', bookData.title);
+        formData.append('rating', bookData.rating);
+        formData.append('description', bookData.description);
+        formData.append('category', bookData.category || 'อื่นๆ');
+        formData.append('price', bookData.price || 0);
+
+        if (coverFile) {
+            formData.append('cover_file', coverFile);
+        }
+
+        if (pdfFile) {
+            formData.append('pdf_file', pdfFile);
+        }
+
+        const response = await fetch(`${API_BASE}/books/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to upload book');
+        }
+        
+        return response.json();
+    }
+
+    async function getBookDetail(bookId) {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No token found');
+
+        const response = await fetch(`${API_BASE}/books/${bookId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to get book details');
+        }
+        
+        return response.json();
+    }
+
+    // Component lifecycle
     onMount(async () => {
-        // Load categories when component mounts
         await loadCategories();
         
-        // Uncomment this to check admin status
         try {
             const user = await getCurrentUser();
             isAdmin = user.role === 'admin';
@@ -37,13 +132,11 @@
         try {
             const response = await getBookCategories();
             categories = response.categories || [];
-            // If no categories loaded, set default categories
             if (categories.length === 0) {
                 categories = ['อื่นๆ', 'นิยาย', 'บทความ', 'การศึกษา', 'ธุรกิจ', 'เทคโนโลยี'];
             }
         } catch (err) {
             console.error('Failed to load categories:', err);
-            // Set default categories if API fails
             categories = ['อื่นๆ', 'นิยาย', 'บทความ', 'การศึกษา', 'ธุรกิจ', 'เทคโนโลยี'];
         } finally {
             loadingCategories = false;
@@ -54,14 +147,17 @@
         error = '';
         message = '';
         try {
-            const response = await uploadBook(bookData, coverFile);
+            const response = await uploadBook(bookData, coverFile, pdfFile);
             message = `หนังสือถูกอัปโหลดสำเร็จ! ID: ${response.id}`;
             // Reset form
             bookData = { title: '', rating: 0, description: '', category: 'อื่นๆ', price: 0 };
             coverFile = null;
-            // Reset file input
-            const fileInput = document.getElementById('cover');
-            if (fileInput) fileInput.value = '';
+            pdfFile = null;
+            // Reset file inputs
+            const coverInput = document.getElementById('cover');
+            const pdfInput = document.getElementById('pdf');
+            if (coverInput) coverInput.value = '';
+            if (pdfInput) pdfInput.value = '';
         } catch (err) {
             error = err.message;
         }
@@ -81,6 +177,10 @@
 
     function handleFileChange(event) {
         coverFile = event.target.files[0];
+    }
+
+    function handlePdfChange(event) {
+        pdfFile = event.target.files[0];
     }
 </script>
 
@@ -114,7 +214,6 @@
                     />
                 </div>
 
-                <!-- ผู้เขียนจะถูกกำหนดเป็นชื่อผู้อัปโหลดโดยอัตโนมัติ -->
                 <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
                     <p class="text-sm text-blue-700">
                         <strong>หมายเหตุ:</strong> ผู้เขียนจะถูกกำหนดเป็นชื่อผู้ใช้ของคุณโดยอัตโนมัติ
@@ -208,6 +307,24 @@
                         class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
                     />
                     <p class="text-xs text-gray-500 mt-1">รองรับไฟล์รูปภาพเท่านั้น (JPG, PNG, GIF)</p>
+                    {#if coverFile}
+                        <p class="text-xs text-blue-600 mt-1">✓ เลือกไฟล์: {coverFile.name}</p>
+                    {/if}
+                </div>
+
+                <div>
+                    <label for="pdf" class="block text-sm font-medium text-gray-700">ไฟล์ PDF หนังสือ (ไม่บังคับ)</label>
+                    <input 
+                        id="pdf" 
+                        type="file" 
+                        accept=".pdf,application/pdf" 
+                        on:change={handlePdfChange} 
+                        class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" 
+                    />
+                    <p class="text-xs text-gray-500 mt-1">รองรับไฟล์ PDF เท่านั้น - ผู้ใช้จะสามารถอ่านและดาวน์โหลดได้</p>
+                    {#if pdfFile}
+                        <p class="text-xs text-green-600 mt-1">✓ เลือกไฟล์: {pdfFile.name} ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)</p>
+                    {/if}
                 </div>
                 
                 <button 
