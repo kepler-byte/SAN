@@ -16,6 +16,7 @@
   "dependencies": {
     "@lucide/svelte": "^0.544.0",
     "@tailwindcss/vite": "^4.1.13",
+    "chart.js": "^4.5.1",
     "page": "^1.11.6",
     "svelte-routing": "^2.13.0",
     "svelte-sonner": "^1.0.5",
