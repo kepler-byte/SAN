@@ -14,6 +14,7 @@
   import Settings from "./routes/Settings.svelte";
   import Bookpreview from "./routes/Bookpreview.svelte";
   import BookTest from "./routes/BookTest.svelte";
+  import Bookstore from "./routes/Bookstore.svelte";
 
     import { Toaster, toast } from 'svelte-sonner';
 
@@ -28,6 +29,7 @@
   const routes = {
     home: Home,
     wallet: Wallet,
+    bookstore: Bookstore,
     settings: Settings,
     booktest: BookTest,
     bookpreview: Bookpreview,
